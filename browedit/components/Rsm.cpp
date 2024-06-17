@@ -80,7 +80,7 @@ void Rsm::reload()
 	else if (version >= 0x0202)
 	{
 		rsmFile->read(reinterpret_cast<char*>(&fps), sizeof(float));
-
+		animLen = (int)ceil(animLen * fps);
 		int textureCount;
 		rsmFile->read(reinterpret_cast<char*>(&textureCount), sizeof(int));;
 		if (textureCount > 100 || textureCount < 0)
@@ -219,6 +219,21 @@ void Rsm::updateMatrices()
 	dynamic_cast<Mesh*>(rootMesh)->setBoundingBox2(mat, realbbmin, realbbmax);
 	realbbrange = (realbbmax + realbbmin) / 2.0f;
 	maxRange = glm::max(glm::max(realbbmax.x, -realbbmin.x), glm::max(glm::max(realbbmax.y, -realbbmin.y), glm::max(realbbmax.z, -realbbmin.z)));
+
+	setAnimated(rootMesh);
+}
+
+void Rsm::setAnimated(Rsm::Mesh* mesh, bool isAnimated)
+{
+	if (!isAnimated) {
+		if (!mesh->rotFrames.empty() || !mesh->scaleFrames.empty() || !mesh->posFrames.empty())
+			isAnimated = true;
+	}
+
+	mesh->isAnimated = isAnimated;
+
+	for (auto child : mesh->children)
+		setAnimated(child, isAnimated);
 }
 
 Rsm::Mesh::Mesh(Rsm* model)
@@ -582,58 +597,41 @@ void Rsm::Mesh::calcMatrix1(int time)
 		matrix2 = glm::mat4(1.0f);
 
 		if (scaleFrames.size() > 0) {
-			if (scaleFrames[scaleFrames.size() - 1].time != 0)
-			{
-				int tick = model->version >= 0x203 ? time % model->animLen : time % scaleFrames[scaleFrames.size() - 1].time;
-				
-				if (tick >= scaleFrames[scaleFrames.size() - 1].time) {
-					matrix1 = glm::scale(matrix1, scaleFrames[scaleFrames.size() - 1].scale);
-				}
-				else {
-					for (unsigned int i = 0; i < scaleFrames.size() - 1; i++)
-					{
-						if (tick >= scaleFrames[i].time && tick < scaleFrames[i + 1].time)
-						{
-							float interval = ((float)(tick - scaleFrames[i].time)) / ((float)(scaleFrames[i + 1].time - scaleFrames[i].time));
-							glm::vec3 scale = scaleFrames[i].scale + (scaleFrames[i + 1].scale - scaleFrames[i].scale) * interval;
-							matrix1 = glm::scale(matrix1, scale);
-							break;
-						}
-					}
-				}
+			int tick = time % glm::max(1, model->animLen);
+			int prevIndex = -1;
+			int nextIndex = 0;
+
+			for (; nextIndex < scaleFrames.size() && tick >= scaleFrames[nextIndex].time; nextIndex++) {
 			}
-			else
-			{
-				matrix1 = glm::scale(matrix1, scaleFrames[0].scale);
-			}
+
+			prevIndex = nextIndex - 1;
+			float prevTick = (float)(prevIndex < 0 ? 0 : scaleFrames[prevIndex].time);
+			float nextTick = (float)(nextIndex == scaleFrames.size() ? model->animLen : scaleFrames[nextIndex].time);
+			glm::vec3 prev = prevIndex < 0 ? glm::vec3(1) : scaleFrames[prevIndex].scale;
+			glm::vec3 next = nextIndex == scaleFrames.size() ? scaleFrames[nextIndex - 1].scale : scaleFrames[nextIndex].scale;
+
+			float mult = (tick - prevTick) / (nextTick - prevTick);
+			matrix1 = glm::scale(matrix1, mult * (next - prev) + prev);
 		}
 
 		if (rotFrames.size() > 0)
 		{
-			if (rotFrames[rotFrames.size() - 1].time != 0)
-			{
-				int tick = model->version >= 0x203 ? time % model->animLen : time % rotFrames[rotFrames.size() - 1].time;
-
-				if (tick >= rotFrames[rotFrames.size() - 1].time) {
-					matrix1 = matrix1 * glm::toMat4(rotFrames[rotFrames.size() - 1].quaternion);
-				}
-				else {
-					for (unsigned int i = 0; i < rotFrames.size() - 1; i++)
-					{
-						if (tick >= rotFrames[i].time && tick < rotFrames[i + 1].time)
-						{
-							float interval = ((float)(tick - rotFrames[i].time)) / ((float)(rotFrames[i + 1].time - rotFrames[i].time));
-							glm::quat quat = glm::slerp(rotFrames[i].quaternion, rotFrames[i + 1].quaternion, interval);
-							matrix1 = glm::toMat4(quat) * matrix1;
-							break;
-						}
-					}
-				}
+			int tick = time % glm::max(1, model->animLen);
+			int prevIndex = -1;
+			int nextIndex = 0;
+			
+			for (; nextIndex < rotFrames.size() && tick >= rotFrames[nextIndex].time; nextIndex++) {
 			}
-			else
-			{
-				matrix1 = glm::toMat4(glm::normalize(rotFrames[0].quaternion)) * matrix1;
-			}
+			
+			prevIndex = nextIndex - 1;
+			float prevTick = (float)(prevIndex < 0 ? 0 : rotFrames[prevIndex].time);
+			float nextTick = (float)(nextIndex == rotFrames.size() ? model->animLen : rotFrames[nextIndex].time);
+			glm::quat prev = prevIndex < 0 ? glm::quat(1, 0, 0, 0) : rotFrames[prevIndex].quaternion;
+			glm::quat next = nextIndex == rotFrames.size() ? rotFrames[nextIndex - 1].quaternion : rotFrames[nextIndex].quaternion;
+			
+			float mult = (tick - prevTick) / (nextTick - prevTick);
+			glm::quat quat = glm::slerp(prev, next, mult);
+			matrix1 = glm::toMat4(quat) * matrix1;
 		}
 		else
 		{
@@ -649,29 +647,21 @@ void Rsm::Mesh::calcMatrix1(int time)
 		glm::vec3 position;
 		
 		if (posFrames.size() > 0) {
-			if (posFrames[posFrames.size() - 1].time != 0)
-			{
-				int tick = model->version >= 0x203 ? time % model->animLen : time % posFrames[posFrames.size() - 1].time;
+			int tick = time % glm::max(1, model->animLen);
+			int prevIndex = -1;
+			int nextIndex = 0;
 
-				if (tick >= posFrames[posFrames.size() - 1].time) {
-					position = posFrames[posFrames.size() - 1].position;
-				}
-				else {
-					for (unsigned int i = 0; i < posFrames.size() - 1; i++)
-					{
-						if (tick >= posFrames[i].time && tick < posFrames[i + 1].time)
-						{
-							float interval = ((float)(tick - posFrames[i].time)) / ((float)(posFrames[i + 1].time - posFrames[i].time));
-							position = posFrames[i].position + (posFrames[i + 1].position - posFrames[i].position) * interval;
-							break;
-						}
-					}
-				}
+			for (; nextIndex < posFrames.size() && tick >= posFrames[nextIndex].time; nextIndex++) {
 			}
-			else
-			{
-				position = posFrames[0].position;
-			}
+
+			prevIndex = nextIndex - 1;
+			float prevTick = (float)(prevIndex < 0 ? 0 : posFrames[prevIndex].time);
+			float nextTick = (float)(nextIndex == posFrames.size() ? model->animLen : posFrames[nextIndex].time);
+			glm::vec3 prev = prevIndex < 0 ? pos_ : posFrames[prevIndex].position;
+			glm::vec3 next = nextIndex == posFrames.size() ? posFrames[nextIndex - 1].position : posFrames[nextIndex].position;
+
+			float mult = (tick - prevTick) / (nextTick - prevTick);
+			position = mult * (next - prev) + prev;
 		}
 		else
 		{
@@ -711,9 +701,9 @@ void Rsm::Mesh::calcMatrix1(int time)
 
 void Rsm::Mesh::calcMatrix2()
 {
-	matrix2 = glm::mat4(1.0f);
-
 	if (model->version < 0x202) {
+		matrix2 = glm::mat4(1.0f);
+
 		if (parent == NULL && children.size() == 0) {
 			matrix2 = glm::translate(matrix2, -1.0f * model->bbrange);
 		}
@@ -808,7 +798,7 @@ void Rsm::Mesh::save(std::ostream* pFile)
 	pFile->write(t->parentName.c_str(), len);
 	pFile->write(zeroes, 40 - len);
 	// Texture ID count
-	int textureCount = t->textures.size();
+	auto textureCount = t->textures.size();
 	pFile->write((char*)&textureCount, 4);
 	// Texture ID
 	for (int i = 0; i < textureCount; i++) {
@@ -833,7 +823,7 @@ void Rsm::Mesh::save(std::ostream* pFile)
 	pFile->write((char*)&t->scale, sizeof(float) * 3);
 
 	// Vertices
-	int vertexCount = t->vertices.size();
+	auto vertexCount = t->vertices.size();
 	pFile->write((char*)&vertexCount, sizeof(int));
 
 	for (int i = 0; i < vertexCount; i++) {
@@ -841,7 +831,7 @@ void Rsm::Mesh::save(std::ostream* pFile)
 	}
 
 	// Texture Coordinates
-	int texCoordCount = t->texCoords.size();
+	auto texCoordCount = t->texCoords.size();
 	pFile->write((char*)&texCoordCount, sizeof(int));
 	for (int i = 0; i < texCoordCount; i++)
 	{
@@ -850,7 +840,7 @@ void Rsm::Mesh::save(std::ostream* pFile)
 	}
 
 	// Faces
-	int faceCount = t->faces.size();
+	auto faceCount = t->faces.size();
 	pFile->write((char*)&faceCount, sizeof(int));
 	for (int i = 0; i < faceCount; i++)
 	{

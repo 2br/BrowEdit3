@@ -16,7 +16,9 @@
     <ClCompile Include="browedit\actions\DeleteObjectAction.cpp" />
     <ClCompile Include="browedit\actions\GatTileChangeAction.cpp" />
     <ClCompile Include="browedit\actions\GndTextureActions.cpp" />
+    <ClCompile Include="browedit\actions\GndVersionChangeAction.cpp" />
     <ClCompile Include="browedit\actions\GroupAction.cpp" />
+    <ClCompile Include="browedit\actions\LightmapNewAction.cpp" />
     <ClCompile Include="browedit\actions\ModelChangeAction.cpp" />
     <ClCompile Include="browedit\actions\NewObjectAction.cpp" />
     <ClCompile Include="browedit\actions\ObjectChangeAction.cpp" />
@@ -28,6 +30,7 @@
     <ClCompile Include="browedit\actions\TileNewAction.cpp" />
     <ClCompile Include="browedit\actions\TilePropertyChangeAction.cpp" />
     <ClCompile Include="browedit\actions\TileSelectAction.cpp" />
+    <ClCompile Include="browedit\actions\WaterSplitChangeAction.cpp" />
     <ClCompile Include="browedit\BrowEdit.cpp" />
     <ClCompile Include="browedit\BrowEdit.glfw.cpp" />
     <ClCompile Include="browedit\BrowEdit.imgui.cpp" />
@@ -64,6 +67,7 @@
     <ClCompile Include="browedit\MapView.Gatmode.cpp" />
     <ClCompile Include="browedit\MapView.Heightmode.cpp" />
     <ClCompile Include="browedit\MapView.Objectmode.cpp" />
+    <ClCompile Include="browedit\MapView.Shadowmode.cpp" />
     <ClCompile Include="browedit\MapView.Texturemode.cpp" />
     <ClCompile Include="browedit\MapView.Wallmode.cpp" />
     <ClCompile Include="browedit\math\AABB.cpp" />
@@ -91,6 +95,7 @@
     <ClCompile Include="browedit\windows\ObjectSelectWindow.cpp" />
     <ClCompile Include="browedit\windows\ObjectTreeWindow.cpp" />
     <ClCompile Include="browedit\windows\OpenMapWindow.cpp" />
+    <ClCompile Include="browedit\windows\ShadowEditWindow.cpp" />
     <ClCompile Include="browedit\windows\TextureBrushWindow.cpp" />
     <ClCompile Include="browedit\windows\TextureManageWindow.cpp" />
     <ClCompile Include="browedit\windows\Toolbar.cpp" />
@@ -136,7 +141,9 @@
     <ClInclude Include="browedit\actions\DeleteObjectAction.h" />
     <ClInclude Include="browedit\actions\GatTileChangeAction.h" />
     <ClInclude Include="browedit\actions\GndTextureActions.h" />
+    <ClInclude Include="browedit\actions\GndVersionChangeAction.h" />
     <ClInclude Include="browedit\actions\GroupAction.h" />
+    <ClInclude Include="browedit\actions\LightmapNewAction.h" />
     <ClInclude Include="browedit\actions\ModelChangeAction.h" />
     <ClInclude Include="browedit\actions\NewObjectAction.h" />
     <ClInclude Include="browedit\actions\ObjectChangeAction.h" />
@@ -148,6 +155,7 @@
     <ClInclude Include="browedit\actions\TileNewAction.h" />
     <ClInclude Include="browedit\actions\TilePropertyChangeAction.h" />
     <ClInclude Include="browedit\actions\TileSelectAction.h" />
+    <ClInclude Include="browedit\actions\WaterSplitChangeAction.h" />
     <ClInclude Include="browedit\BrowEdit.h" />
     <ClInclude Include="browedit\components\BillboardRenderer.h" />
     <ClInclude Include="browedit\components\Collider.h" />

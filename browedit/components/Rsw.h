@@ -21,7 +21,7 @@ class Rsw : public Component, public ImguiProps
 {
 public:
 	short version = 0x201;
-	unsigned char buildNumber = 0;
+	int buildNumber = 0;
 	std::string iniFile;
 	std::string gndFile;
 	std::string gatFile;
@@ -40,7 +40,7 @@ public:
 		void draw(int);
 	};
 
-	struct
+	struct Water
 	{
 		float	height = 0;
 		int		type = 0;
@@ -48,7 +48,20 @@ public:
 		float	waveSpeed = 2.0f;
 		float	wavePitch = 50.0f;
 		int		textureAnimSpeed = 3;
-	} water;
+	};
+
+	class WaterData
+	{
+	public:
+		int splitWidth = 0;
+		int splitHeight = 0;
+
+		std::vector<std::vector<Water>> zones;
+
+		Water* getFromGat(int x, int y, Gnd* gnd);
+		Water* getFromGnd(int x, int y, Gnd* gnd);
+		void resize(int width, int height);
+	};
 
 	struct
 	{
@@ -133,7 +146,7 @@ public:
 	std::vector<glm::vec3> quadtreeFloats;
 	QuadTreeNode* quadtree = nullptr;
 	std::map<std::string, std::map<std::string, glm::vec4>> colorPresets;
-
+	WaterData water;
 
 	Rsw();
 	~Rsw();
@@ -157,7 +170,7 @@ public:
 	RswObject() {}
 	RswObject(RswObject* other);
 	void load(std::istream* is, int version, unsigned char buildNumber, bool loadModel);
-	void save(std::ofstream& file, int version);
+	void save(std::ofstream& file, Rsw *rsw);
 	static void buildImGuiMulti(BrowEdit* browEdit, const std::vector<Node*>&);
 	NLOHMANN_DEFINE_TYPE_INTRUSIVE(RswObject, position, rotation, scale);
 };
@@ -183,7 +196,7 @@ public:
 	RswModel(RswModel* other);
 	void load(std::istream* is, int version, unsigned char buildNumber, bool loadModel);
 	void loadExtra(nlohmann::json data);
-	void save(std::ofstream &file, int version);
+	void save(std::ofstream &file, int version, int buildNumber);
 	nlohmann::json saveExtra();
 	static void buildImGuiMulti(BrowEdit* browEdit, const std::vector<Node*>&);
 
@@ -193,7 +206,6 @@ public:
 class RswLight : public Component
 {
 public:
-	float todo[10];
 	glm::vec3		color;
 	float			range;
 	// custom properties!!!!!!!!!
@@ -296,11 +308,6 @@ public:
 	float	range = 100.0f;
 	float	cycle = 4.0f;
 
-	uint8_t unknown6[8];
-	float unknown7 = -45.0f;
-	float unknown8 = 0.0f;
-
-
 	RswSound() {}
 	RswSound(const std::string &fileName) : fileName(fileName) {}
 	void play();
@@ -308,7 +315,7 @@ public:
 	void save(std::ofstream& file, int version);
 	static void buildImGuiMulti(BrowEdit* browEdit, const std::vector<Node*>&);
 	
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(RswSound, fileName, vol, width, height, range, cycle, unknown6, unknown7, unknown8);
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(RswSound, fileName, vol, width, height, range, cycle);
 };
 
 class RswModelCollider : public Collider
@@ -322,6 +329,7 @@ public:
 	bool collidesTexture(Rsm::Mesh* mesh, const math::Ray& ray, const glm::mat4& matrix, float minDistance, float maxDistance);
 
 	std::vector<glm::vec3> getVerticesWorldSpace(Rsm::Mesh* mesh = nullptr, const glm::mat4& matrix = glm::mat4(1.0f));
+	std::vector<glm::vec3> getAllVerticesWorldSpace(Rsm::Mesh* mesh = nullptr, const glm::mat4& matrix = glm::mat4(1.0f));
 
 	std::vector<glm::vec3> getCollisions(const math::Ray& ray);
 	std::vector<glm::vec3> getCollisions(Rsm::Mesh* mesh, const math::Ray& ray, const glm::mat4 &matrix);

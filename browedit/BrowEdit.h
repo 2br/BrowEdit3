@@ -109,8 +109,8 @@ public:
 		bool configVisible = false;
 
 		bool showNewMapPopup = false;
-		int newMapWidth = 100;
-		int newMapHeight = 100;
+		int newMapWidth = 50;
+		int newMapHeight = 50;
 		std::string newMapName = "borftopia";
 		enum class NewMapTemplate
 		{
@@ -277,8 +277,10 @@ public:
 	glm::vec4	colorEditBrushColor = glm::vec4(1);
 	int			colorEditBrushSize = 1;
 	float		colorEditBrushHardness = 1.0f;
-	float		colorEditDelay = 0.25f;
 
+	int		shadowEditBrushAlpha = 128;
+	int		shadowEditBrushSize = 1;
+	bool	shadowSmoothEdges = true;
 
 	void configBegin();
 
@@ -328,6 +330,7 @@ public:
 	void showTextureManageWindow();
 	void showHotkeyEditorWindow();
 	void showColorEditWindow();
+	void showShadowEditWindow();
 	void showCinematicModeWindow();
 
 	void copyTiles();

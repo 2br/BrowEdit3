@@ -11,6 +11,7 @@
 #include "components/GndRenderer.h"
 #include "components/RsmRenderer.h"
 #include "components/GatRenderer.h"
+#include "components/LubRenderer.h"
 #include "components/WaterRenderer.h"
 #include "components/BillboardRenderer.h"
 
@@ -74,9 +75,10 @@ MapView::MapView(Map* map, const std::string &viewName) : map(map), viewName(vie
 		gadgetHeight[i].mode = Gadget::Mode::TranslateY;
 
 	gridVbo = new gl::VBO<VertexP3T2>();
+	rotateGridVbo = new gl::VBO<VertexP3T2>();
 	textureGridVbo = new gl::VBO<VertexP3T2>();
 	rebuildObjectModeGrid();
-
+	rebuildObjectRotateModeGrid();
 }
 
 void MapView::toolbar(BrowEdit* browEdit)
@@ -125,6 +127,8 @@ void MapView::toolbar(BrowEdit* browEdit)
 			browEdit->toolBarToggleButton("viewLights", viewLights ? ICON_VIEW_LIGHT_ON : ICON_VIEW_LIGHT_OFF, viewLights, "View Lights", HotkeyAction::View_Lights, browEdit->config.toolbarButtonsViewOptions);
 			ImGui::SameLine();
 			browEdit->toolBarToggleButton("viewWater", viewWater ? ICON_VIEW_WATER_ON : ICON_VIEW_WATER_OFF, viewWater, "View Water", HotkeyAction::View_Water, browEdit->config.toolbarButtonsViewOptions);
+			ImGui::SameLine();
+			browEdit->toolBarToggleButton("viewEffectIcons", viewEffectIcons ? ICON_VIEW_EFFECT_ON : ICON_VIEW_EFFECT_ON, viewEffectIcons, "View Effect Icons", HotkeyAction::View_EffectIcons, browEdit->config.toolbarButtonsViewOptions);
 
 			if (browEdit->editMode == BrowEdit::EditMode::Object)
 			{
@@ -208,8 +212,20 @@ void MapView::toolbar(BrowEdit* browEdit)
 	{
 		ImGui::SameLine();
 		ImGui::SetNextItemWidth(50);
-		if (ImGui::DragFloat("##gridSize", (gadget.mode == Gadget::Mode::Translate || browEdit->editMode == BrowEdit::EditMode::Height) ? &gridSizeTranslate : &gridSizeRotate, 1.0f, 0.1f, 100.0f, "%.3f"))
-			rebuildObjectModeGrid();
+		switch (gadget.mode) {
+			case Gadget::Mode::Scale:
+				if (ImGui::DragFloat("##gridSize", &gridSizeScale, 1.0f, 0.1f, 100.0f, "%.3f"))
+					rebuildObjectModeGrid();
+				break;
+			case Gadget::Mode::Rotate:
+				if (ImGui::DragFloat("##gridSize", &gridSizeRotate, 1.0f, 0.1f, 100.0f, "%.3f"))
+					rebuildObjectRotateModeGrid();
+				break;
+			default:
+				if (ImGui::DragFloat("##gridSize", &gridSizeTranslate, 1.0f, 0.1f, 100.0f, "%.3f"))
+					rebuildObjectModeGrid();
+				break;
+		}
 		if (ImGui::IsItemHovered())
 			ImGui::SetTooltip("Grid size. Doubleclick or ctrl+click to type a number");
 		if (ImGui::BeginPopupContextItem("GridSize"))
@@ -223,6 +239,8 @@ void MapView::toolbar(BrowEdit* browEdit)
 				{
 					if (gadget.mode == Gadget::Mode::Translate)
 						gridSizeTranslate = f;
+					else if (gadget.mode == Gadget::Mode::Scale)
+						gridSizeScale = f;
 					else
 						gridSizeRotate = f;
 					ImGui::CloseCurrentPopup();
@@ -238,10 +256,13 @@ void MapView::toolbar(BrowEdit* browEdit)
 		{
 			ImGui::SameLine();
 			ImGui::SetNextItemWidth(50);
-			if (gadget.mode == Gadget::Mode::Translate)
+			if (gadget.mode == Gadget::Mode::Scale)
+				ImGui::DragFloat("##gridOffset", &gridOffsetScale, 1.0f, 0, gridSizeScale, "%.2f");
+			else if (gadget.mode == Gadget::Mode::Translate)
 				ImGui::DragFloat("##gridOffset", &gridOffsetTranslate, 1.0f, 0, gridSizeTranslate, "%.2f");
 			else
-				ImGui::DragFloat("##gridOffset", &gridOffsetRotate, 1.0f, 0, gridSizeRotate, "%.2f");
+				if (ImGui::DragFloat("##gridOffset", &gridOffsetRotate, 1.0f, 0, gridSizeRotate, "%.2f"))
+					rebuildObjectRotateModeGrid();
 			if (ImGui::IsItemHovered())
 				ImGui::SetTooltip("Grid Offset");
 		}
@@ -291,7 +312,10 @@ void MapView::toolbar(BrowEdit* browEdit)
 		ImGui::SetTooltip("Gadget Opacity");
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(50);
-	ImGui::SliderFloat("##gadgetScale", &gadgetScale, 0, 2);
+	if (ImGui::SliderFloat("##gadgetScale", &gadgetScale, 0, 2)) {
+		Gadget::scale = gadgetScale;
+		rebuildObjectRotateModeGrid();
+	}
 	if (ImGui::IsItemHovered())
 		ImGui::SetTooltip("Gadget scale");
 	ImGui::SetNextItemWidth(50);
@@ -325,8 +349,15 @@ void MapView::render(BrowEdit* browEdit)
 
 	if (ortho)
 		nodeRenderContext.projectionMatrix = glm::ortho(-cameraDistance/2*ratio, cameraDistance/2 * ratio, -cameraDistance/2, cameraDistance/2, -5000.0f, 5000.0f);
-	else
-		nodeRenderContext.projectionMatrix = glm::perspective(glm::radians(browEdit->config.fov), ratio, 0.1f, 5000.0f);
+	else {
+		float nearPlane = 0.1f;
+
+		if (cameraDistance > 500)
+			nearPlane = 10.0f;
+		else if (cameraDistance > 25)
+			nearPlane = 1.0f;
+		nodeRenderContext.projectionMatrix = glm::perspective(glm::radians(browEdit->config.fov), ratio, nearPlane, 5000.0f);
+	}
 	if (cinematicPlay && rsw->cinematicTracks.size() > 0)
 	{
 		auto beforePos = (Rsw::KeyFrameData<std::pair<glm::vec3, glm::vec3>>*)rsw->cinematicTracks[0].getBeforeFrame(timeSelected);
@@ -429,7 +460,18 @@ void MapView::render(BrowEdit* browEdit)
 			if (r->node->getComponent<RswModel>())
 				r->enabled = viewModels;
 			if (r->node->getComponent<RswEffect>())
-				r->enabled = viewEffects;
+			{
+				if (dynamic_cast<BillboardRenderer*>(r))
+				{
+					r->enabled = viewEffects;
+					r->node->getComponent<BillboardRenderer>()->enabled = viewEffectIcons && viewEffects;
+					auto lubRenderer = r->node->getComponent<LubRenderer>();
+					if (lubRenderer)
+						lubRenderer->enabled = viewEffects;
+				}
+			}
+			if (r->node->getComponent<LubEffect>())
+				r->node->getComponent<BillboardRenderer>()->enabled = viewEffectIcons && viewEffects;
 			if (r->node->getComponent<RswSound>())
 				r->enabled = viewSounds;
 			if (r->node->getComponent<RswLight>())
@@ -662,7 +704,8 @@ bool MapView::drawCameraWidget()
 		glm::vec3 retFar = glm::unProject(glm::vec3(mousePosScreenSpace, 1.0f), viewMatrix, projectionMatrix, glm::vec4(viewPort[0], viewPort[1], viewPort[2], viewPort[3]));
 		
 		math::Ray ray(retNear, glm::normalize(retFar-retNear));
-		if (cubeMesh.collision(ray, glm::mat4(1.0f)))
+		float t;
+		if (cubeMesh.collision(ray, glm::mat4(1.0f), t))
 		{
 			if (ImGui::IsMouseClicked(0))
 			{

@@ -60,6 +60,7 @@ public:
 	std::string viewName;
 
 	gl::VBO<VertexP3T2>* gridVbo = nullptr;
+	gl::VBO<VertexP3T2>* rotateGridVbo = nullptr;
 
 	NodeRenderContext nodeRenderContext;
 	Gadget gadget;
@@ -83,6 +84,7 @@ public:
 	
 	bool showViewOptions = false;
 	bool ortho = false;
+	bool lockedGizmo = false;
 	glm::vec3 cameraCenter;
 	glm::vec2 cameraRot = glm::vec2(45.0f, 0.0f);
 	float cameraDistance = 500;
@@ -97,8 +99,10 @@ public:
 	bool gridLocal = true;
 	float gridSizeTranslate = 5;
 	float gridSizeRotate = 45;
+	float gridSizeScale = 0.5f;
 	float gridOffsetTranslate = 0;
 	float gridOffsetRotate = 0;
+	float gridOffsetScale = 0;
 
 	bool showAllLights = false;
 	bool showLightSphere = false;
@@ -140,6 +144,7 @@ public:
 		textureBrushFlipV = (mask & 1) != 0;
 	}
 
+	bool deleteTiles = false;
 	int wallWidth = 4;
 	float wallTop = 0;
 	bool wallTopAuto = true;
@@ -184,12 +189,16 @@ public:
 	void postRenderGatMode(BrowEdit* browEdit);
 	void postRenderWallMode(BrowEdit* browEdit);
 	void postRenderColorMode(BrowEdit* browEdit);
+	void postRenderShadowMode(BrowEdit* browEdit);
 	void postRenderCinematicMode(BrowEdit* browEdit);
+
+	void gatEdit_adjustToGround(BrowEdit* browEdit);
 	
 	bool drawCameraWidget();
 
 
 	void rebuildObjectModeGrid();
+	void rebuildObjectRotateModeGrid();
 
 	//todo, move this to a struct for better organisation
 	bool viewLightmapShadow = true;
@@ -209,6 +218,7 @@ public:
 	bool viewSounds = true;
 	bool viewLights = true;
 	bool viewWater = true;
+	bool viewEffectIcons = true;
 
 	void focusSelection();
 	void drawLight(Node* n);

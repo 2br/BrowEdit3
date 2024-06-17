@@ -25,7 +25,7 @@ public:
 				modelMatrix,
 				s_texture,
 				color,
-				billboard,
+				billboard_off,
 				End
 			};
 		};
@@ -36,9 +36,11 @@ public:
 			bindUniform(Uniforms::s_texture, "s_texture");
 			bindUniform(Uniforms::modelMatrix, "modelMatrix");
 			bindUniform(Uniforms::color, "color");
+			bindUniform(Uniforms::billboard_off, "billboard_off");
 		}
 	};
 private:
+	bool dirty = true;
 	RswObject* rswObject = nullptr;
 	LubEffect* lubEffect = nullptr;
 
@@ -51,8 +53,11 @@ private:
 	public:
 		glm::vec3 position;
 		glm::vec3 speed;
+		glm::vec3 dir;
 		float size;
 		float life;
+		float start_life;
+		float alpha;
 	};
 	std::vector<Particle> particles;
 
@@ -72,4 +77,5 @@ public:
 	~LubRenderer();
 	virtual void render();
 	bool selected = false;
+	void setDirty() { this->dirty = true; }
 };

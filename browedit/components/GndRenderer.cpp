@@ -17,7 +17,6 @@ GndRenderer::GndRenderer()
 	renderContext = GndRenderContext::getInstance();
 
 	white = util::ResourceManager<gl::Texture>::load("data\\texture\\white.png");
-	gndShadow = new gl::Texture(shadowmapSize, shadowmapSize);
 	gndShadowDirty = true;
 }
 
@@ -61,6 +60,11 @@ void GndRenderer::render()
 
 	if (gndShadowDirty)
 	{
+		if (gndShadow == nullptr) {
+			shadowmapSize = glm::max(gnd->width * gnd->lightmapWidth, gnd->height * gnd->lightmapHeight) * 2;
+			gndShadow = new gl::Texture(shadowmapSize, shadowmapSize);
+		}
+
 		char* data = new char[shadowmapSize * shadowmapSize * 4];
 		int x = 0; int y = 0;
 		for (size_t i = 0; i < gnd->lightmaps.size(); i++)
@@ -114,14 +118,15 @@ void GndRenderer::render()
 	shader->setUniform(GndShader::Uniforms::ModelViewMatrix, dynamic_cast<GndRenderContext*>(renderContext)->viewMatrix);
 
 
-	glm::vec3 lightDirection;
-	lightDirection[0] = -glm::cos(glm::radians((float)rsw->light.longitude)) * glm::sin(glm::radians((float)rsw->light.latitude));
-	lightDirection[1] = glm::cos(glm::radians((float)rsw->light.latitude));
-	lightDirection[2] = glm::sin(glm::radians((float)rsw->light.longitude)) * glm::sin(glm::radians((float)rsw->light.latitude));
+	glm::vec3 lightDirection(0.0f, 1.0f, 0.0f);
+	glm::mat4 rot = glm::mat4(1.0f);
+	rot = glm::rotate(rot, glm::radians(-(float)rsw->light.latitude), glm::vec3(1, 0, 0));
+	rot = glm::rotate(rot, glm::radians((float)rsw->light.longitude), glm::vec3(0, 1, 0));
+	lightDirection = lightDirection * glm::mat3(rot);
 	shader->setUniform(GndShader::Uniforms::lightAmbient, rsw->light.ambient);
 	shader->setUniform(GndShader::Uniforms::lightDiffuse, rsw->light.diffuse);
 	shader->setUniform(GndShader::Uniforms::lightDirection, lightDirection);
-	shader->setUniform(GndShader::Uniforms::lightIntensity, rsw->light.intensity);
+	//shader->setUniform(GndShader::Uniforms::lightIntensity, rsw->light.intensity);
 
 	shader->setUniform(GndShader::Uniforms::shadowMapToggle, viewLightmapShadow? 0.0f : 1.0f);
 	shader->setUniform(GndShader::Uniforms::lightColorToggle, viewLightmapColor ? 1.0f : 0.0f);
@@ -132,7 +137,7 @@ void GndRenderer::render()
 	shader->setUniform(GndShader::Uniforms::fogEnabled, viewFog);
 	shader->setUniform(GndShader::Uniforms::fogNear, rsw->fog.nearPlane * 240*2.5f);
 	shader->setUniform(GndShader::Uniforms::fogFar, rsw->fog.farPlane * 240*2.5f);
-	shader->setUniform(GndShader::Uniforms::fogExp, rsw->fog.factor);
+	//shader->setUniform(GndShader::Uniforms::fogExp, rsw->fog.factor);
 	shader->setUniform(GndShader::Uniforms::fogColor, rsw->fog.color);
 
 
@@ -241,7 +246,7 @@ void GndRenderer::Chunk::rebuild()
 	const float lmsxu = lmsx - 2.0f;
 	const float lmsyu = lmsy - 2.0f;
 	
-	const int shadowmapRowCount = shadowmapSize / gnd->lightmapWidth;
+	const int shadowmapRowCount = renderer->shadowmapSize / gnd->lightmapWidth;
 
 	for (int x = this->x; x < glm::min(this->x + CHUNKSIZE, (int)gnd->cubes.size()); x++)
 	{
@@ -257,21 +262,30 @@ void GndRenderer::Chunk::rebuild()
 				
 				if(tile->lightmapIndex >= 0)
 				{
-					lm1 = glm::vec2((tile->lightmapIndex % shadowmapRowCount) * (lmsx / shadowmapSize) + 1.0f / shadowmapSize,
-								  (tile->lightmapIndex / shadowmapRowCount) * (lmsy / shadowmapSize) + 1.0f / shadowmapSize);
-					lm2 = glm::vec2(lm1 + glm::vec2(lmsxu / shadowmapSize, lmsyu / shadowmapSize));
+					lm1 = glm::vec2((tile->lightmapIndex % shadowmapRowCount) * (lmsx / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize,
+								  (tile->lightmapIndex / shadowmapRowCount) * (lmsy / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize);
+					lm2 = glm::vec2(lm1 + glm::vec2(lmsxu / renderer->shadowmapSize, lmsyu / renderer->shadowmapSize));
 				}
 
 				glm::vec4 c1(1.0);
-				if(y < gnd->height-1 && gnd->cubes[x][y + 1]->tileUp != -1)
-					c1 = glm::vec4(gnd->tiles[gnd->cubes[x][y + 1]->tileUp]->color) / 255.0f;
+				if(y < gnd->height-1)
+					if (gnd->cubes[x][y + 1]->tileUp == -1)
+						c1 = glm::vec4(0);
+					else
+						c1 = glm::vec4(gnd->tiles[gnd->cubes[x][y + 1]->tileUp]->color) / 255.0f;
 				glm::vec4 c2(1.0f);
-				if (x < gnd->width - 1 && y < gnd->height - 1 && gnd->cubes[x + 1][y + 1]->tileUp != -1)
-					c2 = glm::vec4(gnd->tiles[gnd->cubes[x + 1][y + 1]->tileUp]->color) / 255.0f;
+				if (x < gnd->width - 1 && y < gnd->height - 1)
+					if (gnd->cubes[x + 1][y + 1]->tileUp == -1)
+						c2 = glm::vec4(0);
+					else
+						c2 = glm::vec4(gnd->tiles[gnd->cubes[x + 1][y + 1]->tileUp]->color) / 255.0f;
 				glm::vec4 c3 = glm::vec4(tile->color) / 255.0f;
 				glm::vec4 c4(1.0f);
-				if (x < gnd->width - 1 && gnd->cubes[x + 1][y]->tileUp != -1)
-					c4 = glm::vec4(gnd->tiles[gnd->cubes[x+1][y]->tileUp]->color) / 255.0f;
+				if (x < gnd->width - 1)
+					if (gnd->cubes[x + 1][y]->tileUp == -1)
+						c4 = glm::vec4(0);
+					else
+						c4 = glm::vec4(gnd->tiles[gnd->cubes[x+1][y]->tileUp]->color) / 255.0f;
 
 				VertexP3T2T2C4N3 v1(glm::vec3(10 * x, -cube->h3, 10 * gnd->height - 10 * y),			tile->v3, glm::vec2(lm1.x, lm2.y), c1,		cube->normals[2]);
 				VertexP3T2T2C4N3 v2(glm::vec3(10 * x + 10, -cube->h4, 10 * gnd->height - 10 * y),		tile->v4, glm::vec2(lm2.x, lm2.y), c2,		cube->normals[3]);
@@ -296,8 +310,8 @@ void GndRenderer::Chunk::rebuild()
 				Gnd::Tile* tile = gnd->tiles[cube->tileSide];
 				assert(tile->lightmapIndex >= 0);
 
-				glm::vec2 lm1((tile->lightmapIndex % shadowmapRowCount) * (lmsx / shadowmapSize) + 1.0f / shadowmapSize, (tile->lightmapIndex / shadowmapRowCount) * (lmsy / shadowmapSize) + 1.0f / shadowmapSize);
-				glm::vec2 lm2(lm1 + glm::vec2(lmsxu / shadowmapSize, lmsyu / shadowmapSize));
+				glm::vec2 lm1((tile->lightmapIndex % shadowmapRowCount) * (lmsx / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize, (tile->lightmapIndex / shadowmapRowCount) * (lmsy / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize);
+				glm::vec2 lm2(lm1 + glm::vec2(lmsxu / renderer->shadowmapSize, lmsyu / renderer->shadowmapSize));
 
 
 				glm::vec4 c1(1.0f);
@@ -309,13 +323,13 @@ void GndRenderer::Chunk::rebuild()
 
 
 				//up front
-				VertexP3T2T2C4N3 v1(glm::vec3(10 * x + 10, -cube->h2, 10 * gnd->height - 10 * y + 10),					tile->v2, glm::vec2(lm2.x, lm1.y), c1, glm::vec3(1, 0, 0));
+				VertexP3T2T2C4N3 v1(glm::vec3(10 * x + 10, -cube->h2, 10 * gnd->height - 10 * y + 10),					tile->v2, glm::vec2(lm2.x, lm1.y), c1, glm::vec3(-1, 0, 0));
 				//up back
-				VertexP3T2T2C4N3 v2(glm::vec3(10 * x + 10, -cube->h4, 10 * gnd->height - 10 * y),						tile->v1, glm::vec2(lm1.x, lm1.y), c2, glm::vec3(1, 0, 0));
+				VertexP3T2T2C4N3 v2(glm::vec3(10 * x + 10, -cube->h4, 10 * gnd->height - 10 * y),						tile->v1, glm::vec2(lm1.x, lm1.y), c2, glm::vec3(-1, 0, 0));
 				//down front
-				VertexP3T2T2C4N3 v3(glm::vec3(10 * x + 10, -gnd->cubes[x + 1][y]->h1, 10 * gnd->height - 10 * y + 10),	tile->v4, glm::vec2(lm2.x, lm2.y), c1, glm::vec3(1, 0, 0));
+				VertexP3T2T2C4N3 v3(glm::vec3(10 * x + 10, -gnd->cubes[x + 1][y]->h1, 10 * gnd->height - 10 * y + 10),	tile->v4, glm::vec2(lm2.x, lm2.y), c1, glm::vec3(-1, 0, 0));
 				//down back
-				VertexP3T2T2C4N3 v4(glm::vec3(10 * x + 10, -gnd->cubes[x + 1][y]->h3, 10 * gnd->height - 10 * y),		tile->v3, glm::vec2(lm1.x, lm2.y), c2, glm::vec3(1, 0, 0));
+				VertexP3T2T2C4N3 v4(glm::vec3(10 * x + 10, -gnd->cubes[x + 1][y]->h3, 10 * gnd->height - 10 * y),		tile->v3, glm::vec2(lm1.x, lm2.y), c2, glm::vec3(-1, 0, 0));
 
 				verts[tile->textureIndex].push_back(v3); verts[tile->textureIndex].push_back(v2); verts[tile->textureIndex].push_back(v1);
 				verts[tile->textureIndex].push_back(v4); verts[tile->textureIndex].push_back(v2); verts[tile->textureIndex].push_back(v3);
@@ -325,8 +339,8 @@ void GndRenderer::Chunk::rebuild()
 				Gnd::Tile* tile = gnd->tiles[cube->tileFront];
 				assert(tile->lightmapIndex >= 0);
 
-				glm::vec2 lm1((tile->lightmapIndex % shadowmapRowCount) * (lmsx / shadowmapSize) + 1.0f / shadowmapSize, (tile->lightmapIndex / shadowmapRowCount) * (lmsy / shadowmapSize) + 1.0f / shadowmapSize);
-				glm::vec2 lm2(lm1 + glm::vec2(lmsxu / shadowmapSize, lmsyu / shadowmapSize));
+				glm::vec2 lm1((tile->lightmapIndex % shadowmapRowCount) * (lmsx / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize, (tile->lightmapIndex / shadowmapRowCount) * (lmsy / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize);
+				glm::vec2 lm2(lm1 + glm::vec2(lmsxu / renderer->shadowmapSize, lmsyu / renderer->shadowmapSize));
 
 				glm::vec4 c1(1.0f);
 				if (y < gnd->height - 1 && gnd->cubes[x][y + 1]->tileUp != -1)
@@ -340,8 +354,8 @@ void GndRenderer::Chunk::rebuild()
 				VertexP3T2T2C4N3 v4(glm::vec3(10 * x + 10, -gnd->cubes[x][y + 1]->h2, 10 * gnd->height - 10 * y),	tile->v4, glm::vec2(lm2.x, lm2.y), c2, glm::vec3(0, 0, 1));
 				VertexP3T2T2C4N3 v3(glm::vec3(10 * x, -gnd->cubes[x][y + 1]->h1, 10 * gnd->height - 10 * y),		tile->v3, glm::vec2(lm1.x, lm2.y), c1, glm::vec3(0, 0, 1));
 
-				verts[tile->textureIndex].push_back(v3); verts[tile->textureIndex].push_back(v2); verts[tile->textureIndex].push_back(v1);
-				verts[tile->textureIndex].push_back(v4); verts[tile->textureIndex].push_back(v2); verts[tile->textureIndex].push_back(v3);
+				verts[tile->textureIndex].push_back(v1); verts[tile->textureIndex].push_back(v2); verts[tile->textureIndex].push_back(v3);
+				verts[tile->textureIndex].push_back(v3); verts[tile->textureIndex].push_back(v2); verts[tile->textureIndex].push_back(v4);
 			}
 		}
 	}
@@ -359,7 +373,9 @@ void GndRenderer::Chunk::rebuild()
 
 void GndRenderer::setChunkDirty(int x, int y)
 {
-	chunks[y / CHUNKSIZE][x / CHUNKSIZE]->dirty = true;
+	if (y >= 0 && y / CHUNKSIZE < chunks.size() &&
+		x >= 0 && x / CHUNKSIZE < chunks[y / CHUNKSIZE].size())
+		chunks[y / CHUNKSIZE][x / CHUNKSIZE]->dirty = true;
 }
 
 void GndRenderer::setChunksDirty()

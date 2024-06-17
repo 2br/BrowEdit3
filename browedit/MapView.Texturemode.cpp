@@ -245,11 +245,30 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 			simpleShader->setUniform(SimpleShader::Uniforms::lightMin, 0.5f);
 		}
 
-
-
-
 		if (hovered && mouse3D != glm::vec3(std::numeric_limits<float>::max()))
 		{
+			if (deleteTiles && browEdit->textureStamp.size() == 0)
+			{
+				auto ga = new GroupAction();
+				deleteTiles = false;
+
+				glm::ivec2 tileHovered((int)glm::floor(mouse3D.x / 10), (gnd->height - (int)glm::floor(mouse3D.z) / 10));
+				glm::ivec2 topleft = tileHovered - glm::ivec2(textureBrushWidth / 2, textureBrushHeight / 2);
+				
+				for (int x = 0; x < textureBrushWidth; x++)
+				{
+					for (int y = 0; y < textureBrushHeight; y++)
+					{
+						if (topleft.x + x >= gnd->width || topleft.x + x < 0 || topleft.y + y >= gnd->height || topleft.y + y < 0)
+							continue;
+						auto cube = gnd->cubes[topleft.x + x][topleft.y + y];
+						ga->addAction(new CubeTileChangeAction(glm::ivec2(topleft.x + x, topleft.y + y), cube, -1, cube->tileFront, cube->tileSide));
+						cube->tileUp = -1;
+					}
+				}
+
+				map->doAction(ga, browEdit);
+			}
 			if (ImGui::IsMouseDown(0) && ImGui::GetIO().KeyShift)
 			{//dragging mouse to show preview
 				if (!mouseDown)
@@ -366,7 +385,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 								t->color = gnd->tiles[cube->tileUp]->color;
 
 							ga->addAction(new TileNewAction(t));
-							ga->addAction(new CubeTileChangeAction(cube, id, cube->tileFront, cube->tileSide));
+							ga->addAction(new CubeTileChangeAction(glm::ivec2(topleft.x + x, topleft.y + y), cube, id, cube->tileFront, cube->tileSide));
 							cube->tileUp = id;
 							id++;
 						}
@@ -421,7 +440,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 								t->textureIndex = textureStampLookup[t->textureIndex];
 							}
 							ga->addAction(new TileNewAction(t));
-							ga->addAction(new CubeTileChangeAction(cube, id, cube->tileFront, cube->tileSide));
+							ga->addAction(new CubeTileChangeAction(glm::ivec2(x, y), cube, id, cube->tileFront, cube->tileSide));
 							cube->tileUp = id;
 							id++;
 						}
@@ -549,7 +568,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 							gndRenderer->setChunkDirty(tile.x, tile.y);
 
 							ga->addAction(new TileNewAction(t));
-							ga->addAction(new CubeTileChangeAction(cube, id, cube->tileFront, cube->tileSide));
+							ga->addAction(new CubeTileChangeAction(tile, cube, id, cube->tileFront, cube->tileSide));
 							id++;
 						}
 						map->doAction(ga, browEdit);
@@ -918,6 +937,8 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 		}
 		if (verts.size() > 0)
 		{
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 			glEnableVertexAttribArray(0);
 			glEnableVertexAttribArray(1);
 			glEnableVertexAttribArray(2);
@@ -927,11 +948,12 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 			glVertexAttribPointer(1, 2, GL_FLOAT, false, sizeof(VertexP3T2N3), verts[0].data + 3);
 			glVertexAttribPointer(2, 3, GL_FLOAT, false, sizeof(VertexP3T2N3), verts[0].data + 5);
 
-
 			gndRenderer->textures[textureSelected]->bind();
+			simpleShader->use();
 			simpleShader->setUniform(SimpleShader::Uniforms::textureFac, 1.0f);
 			simpleShader->setUniform(SimpleShader::Uniforms::color, glm::vec4(1, 1.0f, 1.0f, 0.5f));
 			simpleShader->setUniform(SimpleShader::Uniforms::lightMin, 1.0f);
+			simpleShader->setUniform(SimpleShader::Uniforms::shadeType, 1);
 			glDepthMask(0);
 			glDrawArrays(GL_TRIANGLES, 0, (int)verts.size());
 
@@ -939,6 +961,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 			simpleShader->setUniform(SimpleShader::Uniforms::textureFac, 0.0f);
 			simpleShader->setUniform(SimpleShader::Uniforms::color, glm::vec4(1, 0.0f, 0.0f, 0.5f));
 			simpleShader->setUniform(SimpleShader::Uniforms::lightMin, 1.0f);
+			simpleShader->setUniform(SimpleShader::Uniforms::shadeType, 1);
 			glDepthMask(1);
 			glDrawArrays(GL_TRIANGLES, 0, (int)verts.size());
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -979,7 +1002,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 				gndRenderer->setChunkDirty(tile.x, tile.y);
 
 				ga->addAction(new TileNewAction(t));
-				ga->addAction(new CubeTileChangeAction(cube, id, cube->tileFront, cube->tileSide));
+				ga->addAction(new CubeTileChangeAction(tile, cube, id, cube->tileFront, cube->tileSide));
 				id++;
 			}
 			map->doAction(ga, browEdit);
@@ -1003,8 +1026,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 		}
 	}
 
-
-
+	deleteTiles = false;
 	fbo->unbind();
 
 }

@@ -44,9 +44,16 @@ void LubRenderer::render()
 		rswObject = node->getComponent<RswObject>();
 	if (!gnd)
 		gnd = node->root->getComponent<Gnd>();
-	if (!lubEffect)
+	if (!lubEffect || dirty)
 	{
 		lubEffect = node->getComponent<LubEffect>();
+		dirty = false;
+
+		if (texture != nullptr) {
+			util::ResourceManager<gl::Texture>::unload(texture);
+			texture = nullptr;
+		}
+
 		if (lubEffect && lubEffect->texture != "")
 		{
 			texture = util::ResourceManager<gl::Texture>::load("data\\texture\\" + lubEffect->texture);
@@ -54,16 +61,23 @@ void LubRenderer::render()
 		else
 			texture = nullptr;
 	}
-	if (!rswObject || !lubEffect)
+	if (!rswObject || !lubEffect || !gnd)
 		return;
 
 	auto shader = dynamic_cast<LubRenderContext*>(renderContext)->shader;//TODO: don't cast
 
 	glm::mat4 modelMatrix(1.0f);
 	modelMatrix = glm::scale(modelMatrix, glm::vec3(1, 1, -1));
-	modelMatrix = glm::translate(modelMatrix, glm::vec3(5 * gnd->width + rswObject->position.x, -rswObject->position.y, -10 - 5 * gnd->height + rswObject->position.z));
-	shader->setUniform(LubShader::Uniforms::modelMatrix, modelMatrix);
-	shader->setUniform(LubShader::Uniforms::color, lubEffect->color);
+	modelMatrix = glm::translate(modelMatrix, glm::vec3(5 * gnd->width + rswObject->position.x, -rswObject->position.y + 11, -9 - 5 * gnd->height + rswObject->position.z));
+
+	if (lubEffect->billboard_off) {
+		modelMatrix = glm::rotate(modelMatrix, -glm::radians(lubEffect->rotate_angle.z), glm::vec3(0, 0, 1));
+		modelMatrix = glm::rotate(modelMatrix, glm::radians(lubEffect->rotate_angle.y), glm::vec3(0, 1, 0));
+		modelMatrix = glm::rotate(modelMatrix, -glm::radians(lubEffect->rotate_angle.x), glm::vec3(1, 0, 0));
+	}
+
+	shader->setUniform(LubShader::Uniforms::billboard_off, (bool)lubEffect->billboard_off);
+	shader->setUniform(LubShader::Uniforms::color, glm::vec4(lubEffect->color.r, lubEffect->color.g, lubEffect->color.b, 1.0f));
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	if (texture)
@@ -76,56 +90,84 @@ void LubRenderer::render()
 	lastTime = time;
 	for (auto& p : particles)
 	{
-		p.position += p.speed * elapsedTime;
+		p.position += (p.dir * lubEffect->speed + p.speed) * elapsedTime;
 		p.life -= elapsedTime;
-		p.speed += lubEffect->gravity * elapsedTime;
+		p.speed += lubEffect->speed * lubEffect->gravity * glm::vec3(1, -1, 1) * elapsedTime;
+
+		if (p.start_life > 1) {
+			if (p.life < glm::min(1.0f, p.start_life / 2.0f))
+				p.alpha -= elapsedTime;
+			else
+				p.alpha += elapsedTime;
+
+			p.alpha = glm::clamp(p.alpha, 0.0f, 1.0f);
+		}
 	}
-	if(particles.size() > 0)
+	if (particles.size() > 0)
 		particles.erase(std::remove_if(particles.begin(), particles.end(), [](const Particle& p) { return p.life < 0; }), particles.end());
 	emitTime -= elapsedTime;
 	if (emitTime < 0 && particles.size() < lubEffect->maxcount)
 	{
 		Particle p;
-		p.position = glm::vec3(0.0f);
-		p.speed.x = lubEffect->dir1.x + (rand() / (float)RAND_MAX) * (lubEffect->dir2.x - lubEffect->dir1.x);
-		p.speed.y = -(lubEffect->dir1.y + (rand() / (float)RAND_MAX) * (lubEffect->dir2.y - lubEffect->dir1.z));
-		p.speed.z = lubEffect->dir1.z + (rand() / (float)RAND_MAX) * (lubEffect->dir2.z - lubEffect->dir1.y);
+		p.position = glm::vec3(
+			-lubEffect->radius.x + (rand() / (float)RAND_MAX) * (-lubEffect->radius.x + 2 * abs(lubEffect->radius.x) + lubEffect->radius.x),
+			-lubEffect->radius.y + (rand() / (float)RAND_MAX) * (-lubEffect->radius.y + 2 * abs(lubEffect->radius.y) + lubEffect->radius.y),
+			-lubEffect->radius.z + (rand() / (float)RAND_MAX) * (-lubEffect->radius.z + 2 * abs(lubEffect->radius.z) + lubEffect->radius.z)
+		);
+		p.speed = glm::vec3(0);
+		p.dir = glm::vec3(
+			lubEffect->dir1.x + (rand() / (float)RAND_MAX) * (lubEffect->dir2.x - lubEffect->dir1.x),
+			-lubEffect->dir1.y + (rand() / (float)RAND_MAX) * (-lubEffect->dir2.y + lubEffect->dir1.y),
+			lubEffect->dir1.z + (rand() / (float)RAND_MAX) * (lubEffect->dir2.z - lubEffect->dir1.z)
+		);
 		p.life = lubEffect->life.x + (rand() / (float)RAND_MAX) * (lubEffect->life.y - lubEffect->life.x);
+		p.start_life = p.life;
 		p.size = lubEffect->size.x + (rand() / (float)RAND_MAX) * (lubEffect->size.y - lubEffect->size.x);
+		p.alpha = 0;
 
 		particles.push_back(p);
 		emitTime = 1.0f / (lubEffect->rate.x + (rand() / (float)RAND_MAX) * (lubEffect->rate.y - lubEffect->rate.x));
 	}
 
-
+	if (lubEffect->zenable)
+		glEnable(GL_DEPTH_TEST);
+	else
+		glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	int src = d3dToOpenGlBlend(lubEffect->srcmode);
 	int dst = d3dToOpenGlBlend(lubEffect->destmode);
-	glBlendFuncSeparate(src, dst, GL_ONE, GL_ONE);
+	glBlendFunc(src, dst);
 	glDepthMask(0);
 
 	std::vector<VertexP3T2A1> verts;
 	for (const auto& p : particles)
 	{
-		float alpha = glm::clamp(p.life, 0.0f, 1.0f);
-		verts.push_back(VertexP3T2A1(p.position + glm::vec3(-p.size/2, 0, 0), glm::vec2(0, 0), alpha));
-		verts.push_back(VertexP3T2A1(p.position + glm::vec3(-p.size/2, p.size, 0), glm::vec2(0, 1), alpha));
-		verts.push_back(VertexP3T2A1(p.position + glm::vec3(p.size/2, p.size, 0), glm::vec2(1, 1), alpha));
-		verts.push_back(VertexP3T2A1(p.position + glm::vec3(p.size/2, 0, 0), glm::vec2(1, 0), alpha));
+		float alpha = p.alpha;
+		verts.push_back(VertexP3T2A1(glm::vec3(-p.size, -p.size, 0), glm::vec2(0, 0), alpha));
+		verts.push_back(VertexP3T2A1(glm::vec3(-p.size, p.size, 0), glm::vec2(0, 1), alpha));
+		verts.push_back(VertexP3T2A1(glm::vec3(p.size, p.size, 0), glm::vec2(1, 1), alpha));
+		verts.push_back(VertexP3T2A1(glm::vec3(p.size, -p.size, 0), glm::vec2(1, 0), alpha));
 	}
-
 
 	if (verts.size() > 0)
 	{
-
 		glVertexAttribPointer(0, 3, GL_FLOAT, false, sizeof(VertexP3T2A1), verts[0].data);
 		glVertexAttribPointer(1, 2, GL_FLOAT, false, sizeof(VertexP3T2A1), verts[0].data + 3);
 		glVertexAttribPointer(2, 1, GL_FLOAT, false, sizeof(VertexP3T2A1), verts[0].data + 5);
-		glDrawArrays(GL_QUADS, 0, (int)verts.size());
 	}
+
+	for (int i = 0; i < particles.size(); i++)
+	{
+		Particle p = particles[i];
+		glm::mat4 modelMatrixSub = modelMatrix;
+		modelMatrixSub[3] += glm::vec4(p.position.x, p.position.y, -p.position.z, 0.0f);
+		shader->setUniform(LubShader::Uniforms::modelMatrix, modelMatrixSub);
+		glDrawArrays(GL_QUADS, 4 * i, 4);
+	}
+	
 	glDepthMask(1);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+	glEnable(GL_DEPTH_TEST);
 }
 
 

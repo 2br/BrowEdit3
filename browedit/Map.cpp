@@ -779,7 +779,7 @@ void Map::recalculateQuadTree(BrowEdit* browEdit)
 		auto gnd = rootNode->getComponent<Gnd>();
 		if(rsw->quadtree)
 			delete rsw->quadtree;
-		rsw->quadtree = new Rsw::QuadTreeNode(10*-gnd->width/2.0f, 10 * -gnd->height/2.0f, (float)gnd->width*10, (float)gnd->height*10, 0);
+		rsw->quadtree = new Rsw::QuadTreeNode(10*-gnd->width/2.0f, 10 * -gnd->height/2.0f, (float)gnd->width*10 - 1.0f, (float)gnd->height*10 - 1.0f, 0);
 	}
 
 	rsw->recalculateQuadtree();
@@ -1023,9 +1023,9 @@ void Map::wallAddSelected(BrowEdit* browEdit)
 		t->v4 = calculation.g_uv4;
 
 		if (w.z == 1 && cube->tileSide == -1)
-			ga->addAction(new CubeTileChangeAction(cube, cube->tileUp, cube->tileFront, id));
+			ga->addAction(new CubeTileChangeAction(w, cube, cube->tileUp, cube->tileFront, id));
 		if (w.z == 2 && cube->tileFront == -1)
-			ga->addAction(new CubeTileChangeAction(cube, cube->tileUp, id, cube->tileSide));
+			ga->addAction(new CubeTileChangeAction(w, cube, cube->tileUp, id, cube->tileSide));
 		ga->addAction(new TileNewAction(t));
 		id++;
 	}
@@ -1062,9 +1062,9 @@ void Map::wallReApplySelected(BrowEdit* browEdit)
 		t->v4 = calculation.g_uv4;
 
 		if (w.z == 1)
-			ga->addAction(new CubeTileChangeAction(cube, cube->tileUp, cube->tileFront, id));
+			ga->addAction(new CubeTileChangeAction(w, cube, cube->tileUp, cube->tileFront, id));
 		if (w.z == 2)
-			ga->addAction(new CubeTileChangeAction(cube, cube->tileUp, id, cube->tileSide));
+			ga->addAction(new CubeTileChangeAction(w, cube, cube->tileUp, id, cube->tileSide));
 		ga->addAction(new TileNewAction(t));
 		id++;
 	}
@@ -1083,9 +1083,9 @@ void Map::wallRemoveSelected(BrowEdit* browEdit)
 	{
 		auto cube = gnd->cubes[w.x][w.y];
 		if (w.z == 1 && cube->tileSide != -1)
-			ga->addAction(new CubeTileChangeAction(cube, cube->tileUp, cube->tileFront, -1));
+			ga->addAction(new CubeTileChangeAction(w, cube, cube->tileUp, cube->tileFront, -1));
 		if (w.z == 2 && cube->tileFront != -1)
-			ga->addAction(new CubeTileChangeAction(cube, cube->tileUp, -1, cube->tileSide));
+			ga->addAction(new CubeTileChangeAction(w, cube, cube->tileUp, -1, cube->tileSide));
 
 	}
 	doAction(ga, browEdit);
@@ -1112,7 +1112,7 @@ void Map::wallFlipSelectedTextureHorizontal(BrowEdit* browEdit)
 		std::swap(tile->v1.x, tile->v2.x);
 		std::swap(tile->v3.x, tile->v4.x);
 		for(int i = 0; i < 4; i++)
-			ga->addAction(new TileChangeAction<glm::vec2>(tile, &tile->texCoords[i], original.texCoords[i], "Change UV"));
+			ga->addAction(new TileChangeAction<glm::vec2>(w, tile, &tile->texCoords[i], original.texCoords[i], "Change UV"));
 	}
 	doAction(ga, browEdit);
 }
@@ -1137,7 +1137,7 @@ void Map::wallFlipSelectedTextureVertical(BrowEdit* browEdit)
 		std::swap(tile->v1.y, tile->v3.y);
 		std::swap(tile->v2.y, tile->v4.y);
 		for (int i = 0; i < 4; i++)
-			ga->addAction(new TileChangeAction<glm::vec2>(tile, &tile->texCoords[i], original.texCoords[i], "Change UV"));
+			ga->addAction(new TileChangeAction<glm::vec2>(w, tile, &tile->texCoords[i], original.texCoords[i], "Change UV"));
 	}
 	doAction(ga, browEdit);
 }

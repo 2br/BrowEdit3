@@ -267,6 +267,8 @@ void BrowEdit::run()
 		}
 		if (editMode == EditMode::Color)
 			showColorEditWindow();
+		if (editMode == EditMode::Shadow)
+			showShadowEditWindow();
 		if (editMode == EditMode::Cinematic)
 			showCinematicModeWindow();
 
@@ -572,6 +574,8 @@ void BrowEdit::showMapWindow(MapView& mapView, float deltaTime)
 					mapView.postRenderWallMode(this);
 				else if (editMode == EditMode::Color)
 					mapView.postRenderColorMode(this);
+				else if (editMode == EditMode::Shadow)
+					mapView.postRenderShadowMode(this);
 				else if (editMode == EditMode::Cinematic)
 					mapView.postRenderCinematicMode(this);
 			}
@@ -623,7 +627,7 @@ void fixBackup(const std::string& fileName, const std::string& backupfileName)
 		}
 
 		int c = 0;
-		for(int i = 0; i < 999; i++)
+		for(int i = 0; i < 99999; i++)
 			if (!std::filesystem::exists(backupfileName + "." + std::to_string(i)))
 			{
 				c = i;
@@ -689,7 +693,7 @@ void BrowEdit::saveMap(Map* map)
 	}
 
 	map->rootNode->getComponent<Rsw>()->save(rswName, this);
-	map->rootNode->getComponent<Gnd>()->save(gndName);
+	map->rootNode->getComponent<Gnd>()->save(gndName, map->rootNode->getComponent<Rsw>());
 	map->rootNode->getComponent<Gat>()->save(gatName);
 
 	map->changed = false;
@@ -751,7 +755,7 @@ void BrowEdit::saveAsMap(Map* map)
 	map->rootNode->getComponent<Rsw>()->gatFile = mapName + ".gat";
 	map->rootNode->getComponent<Rsw>()->gndFile = mapName + ".gnd";
 	map->rootNode->getComponent<Rsw>()->save(rswName, this);
-	map->rootNode->getComponent<Gnd>()->save(gndName);
+	map->rootNode->getComponent<Gnd>()->save(gndName, map->rootNode->getComponent<Rsw>());
 	map->rootNode->getComponent<Gat>()->save(gatName);
 }
 
@@ -828,6 +832,8 @@ void BrowEdit::copyTiles()
 				}
 			}
 	}
+
+	glm::vec3 centerObjects(center.x * 10 - 5 * gnd->width, 0, center.y * 10 - 5 * gnd->height);
 	clipboard["objects"] = json::array();
 	activeMapView->map->rootNode->traverse([&](Node* n) {
 		auto rswObject = n->getComponent<RswObject>();
@@ -840,6 +846,7 @@ void BrowEdit::copyTiles()
 					pos.z >= 10 * gnd->height - (tile.y + 1) * 10 + 10 && pos.z <= 10 * gnd->height - (tile.y + 0) * 10 + 10)
 				{
 					clipboard["objects"].push_back(*n);
+					clipboard["objects"][clipboard["objects"].size() - 1]["relative_position"] = rswObject->position - centerObjects;
 					break;
 				}
 			}
@@ -987,7 +994,7 @@ void BrowEdit::ShowNewMapPopup()
 		ImGui::InputInt("Width", &windowData.newMapWidth);
 		ImGui::InputInt("Height", &windowData.newMapHeight);
 		if (windowData.newMapWidth % 2 == 1 || windowData.newMapHeight % 2 == 1)
-			ImGui::TextColored(ImVec4(1, 0, 0, 1), "Warning, maps with odd dimentions do not work well in browedit yet");
+			ImGui::TextColored(ImVec4(1, 0, 0, 1), "Warning, maps with odd dimentions do not work well ingame");
 		ImGui::Text("Your map will be twice the size in RO ingame coordinats");
 		ImGui::InputText("Name", &windowData.newMapName);
 		if (ImGui::Button("Create"))

@@ -87,6 +87,7 @@ enum class HotkeyAction
 	Texture_NextTexture,
 	Texture_PrevTexture,
 	Texture_SelectFull,
+	Texture_Delete,
 
 
 	GatEdit_NextTileType,
@@ -101,6 +102,7 @@ enum class HotkeyAction
 	GatEdit_Tile7,
 	GatEdit_Tile8,
 	GatEdit_Tile9,
+	GatEdit_AdjustToGround,
 
 	ColorEdit_Dropper,
 
@@ -138,6 +140,7 @@ enum class HotkeyAction
 	View_Sounds,
 	View_Lights,
 	View_Water,
+	View_EffectIcons,
 
 	Camera_OrthoPerspective,
 	Camera_MoveXPositive,

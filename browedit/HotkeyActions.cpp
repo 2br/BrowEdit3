@@ -165,6 +165,9 @@ void BrowEdit::registerActions()
 	HotkeyRegistry::registerAction(HotkeyAction::GatEdit_Tile7,						[this]() { windowData.gatEdit.gatIndex = 7;	heightDoodle = false;	windowData.gatEdit.doodle = true; }, hasActiveMapViewGatMode);
 	HotkeyRegistry::registerAction(HotkeyAction::GatEdit_Tile8,						[this]() { windowData.gatEdit.gatIndex = 8;	heightDoodle = false;	windowData.gatEdit.doodle = true; }, hasActiveMapViewGatMode);
 	HotkeyRegistry::registerAction(HotkeyAction::GatEdit_Tile9,						[this]() { windowData.gatEdit.gatIndex = 9;	heightDoodle = false;	windowData.gatEdit.doodle = true; }, hasActiveMapViewGatMode);
+	HotkeyRegistry::registerAction(HotkeyAction::GatEdit_AdjustToGround,			[this]() { 
+		activeMapView->gatEdit_adjustToGround(this);
+	}, hasActiveMapViewGatMode);
 	
 	HotkeyRegistry::registerAction(HotkeyAction::ColorEdit_Dropper,					[this]() { dropperEnabled = !dropperEnabled; cursor = dropperEnabled ? dropperCursor : nullptr; }, hasActiveMapViewGatMode);
 
@@ -182,6 +185,7 @@ void BrowEdit::registerActions()
 	HotkeyRegistry::registerAction(HotkeyAction::Texture_PrevTexture,				[this]() { activeMapView->textureSelected = (activeMapView->textureSelected + activeMapView->map->rootNode->getComponent<Gnd>()->textures.size() - 1) % (int)activeMapView->map->rootNode->getComponent<Gnd>()->textures.size(); }, hasActiveMapViewTextureWallMode);
 	HotkeyRegistry::registerAction(HotkeyAction::Texture_NextTexture,				[this]() { activeMapView->textureSelected = (activeMapView->textureSelected + 1) % activeMapView->map->rootNode->getComponent<Gnd>()->textures.size(); }, hasActiveMapViewTextureWallMode);
 	HotkeyRegistry::registerAction(HotkeyAction::Texture_SelectFull,				[this]() { activeMapView->textureEditUv1 = glm::vec2(0, 0);	activeMapView->textureEditUv2 = glm::vec2(1, 1); }, hasActiveMapViewTextureWallMode);
+	HotkeyRegistry::registerAction(HotkeyAction::Texture_Delete,					[this]() { activeMapView->deleteTiles = true; }, hasActiveMapViewTextureMode);
 	
 
 	HotkeyRegistry::registerAction(HotkeyAction::EditMode_Height,					[this]() { editMode = EditMode::Height; });
@@ -204,6 +208,7 @@ void BrowEdit::registerActions()
 	HotkeyRegistry::registerAction(HotkeyAction::View_GatTiles,						[this]() { if (editMode == BrowEdit::EditMode::Gat) { activeMapView->viewGatGat = !activeMapView->viewGatGat; } else { activeMapView->viewGat = !activeMapView->viewGat; } }, hasActiveMapView);
 	HotkeyRegistry::registerAction(HotkeyAction::View_Models,						[this]() { activeMapView->viewModels = !activeMapView->viewModels; }, hasActiveMapView);
 	HotkeyRegistry::registerAction(HotkeyAction::View_Effects,						[this]() { activeMapView->viewEffects = !activeMapView->viewEffects; }, hasActiveMapView);
+	HotkeyRegistry::registerAction(HotkeyAction::View_EffectIcons,					[this]() { activeMapView->viewEffectIcons = !activeMapView->viewEffectIcons; }, hasActiveMapView);
 	HotkeyRegistry::registerAction(HotkeyAction::View_Sounds,						[this]() { activeMapView->viewSounds = !activeMapView->viewSounds; }, hasActiveMapView);
 	HotkeyRegistry::registerAction(HotkeyAction::View_Lights,						[this]() { activeMapView->viewLights= !activeMapView->viewLights; }, hasActiveMapView);
 	HotkeyRegistry::registerAction(HotkeyAction::View_Water,						[this]() { activeMapView->viewWater = !activeMapView->viewWater; }, hasActiveMapView);

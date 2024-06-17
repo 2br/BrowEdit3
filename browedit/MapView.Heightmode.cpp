@@ -197,17 +197,17 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 
 			if ((browEdit->pasteOptions & PasteOptions::Objects) != 0)
 			{
-				auto ga = new GroupAction("Pasting " + std::to_string(browEdit->newNodes.size()) + " objects");
 				bool first = false;
 				glm::ivec2 center(browEdit->pasteData["center"]);
 				glm::ivec2 offset = tileHovered - center;
-
+				glm::vec3 centerObjects(center.x * 10 - 5 * gnd->width, 0, center.y * 10 - 5 * gnd->height);
 
 				for (auto newNode : browEdit->pasteData["objects"])
 				{
 					Node* n = new Node(newNode["name"].get<std::string>());
 					n->addComponentsFromJson(newNode["components"]);
-
+					glm::vec3 relative_position;
+					from_json(newNode["relative_position"], relative_position);
 					std::string path = n->name;
 					if (path.find("\\") != std::string::npos)
 						path = path.substr(0, path.rfind("\\"));
@@ -215,7 +215,7 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 						path = "";
 					n->setParent(map->findAndBuildNode(path));
 					n->makeNameUnique(map->rootNode);
-					n->getComponent<RswObject>()->position += glm::vec3(10 * offset.x, 0, 10 * offset.y);
+					n->getComponent<RswObject>()->position = relative_position + glm::vec3(10 * offset.x, 0, 10 * offset.y) + centerObjects;
 					ga->addAction(new NewObjectAction(n));
 					auto sa = new SelectAction(map, n, first, false);
 					sa->perform(map, browEdit); // to make sure everything is selected
@@ -236,6 +236,7 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 				}
 				ga->addAction(new GatTileSelectAction(map, cubeSelected));
 				auto action1 = new CubeHeightChangeAction<Gat, Gat::Cube>(gat, cubeSelected);
+
 				for (auto c : browEdit->pasteData["gats"])
 				{
 					glm::ivec2 pos = glm::ivec2(c["pos"]) + 2 * tileHovered;
@@ -243,7 +244,8 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 						from_json(c, *gat->cubes[pos.x][pos.y]);
 				}
 
-
+				action1->setNewHeights(gat, cubeSelected);
+				ga->addAction(action1);
 			}
 			map->doAction(ga, browEdit);
 
@@ -259,6 +261,7 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 	if (browEdit->heightDoodle && hovered)
 	{
 		static std::map<Gnd::Cube*, float[4]> originalHeights;
+		static std::vector<glm::ivec2> tilesProcessed;
 
 		glm::vec2 tileHoveredOffset((mouse3D.x / 10) - tileHovered.x, tileHovered.y - (gnd->height - mouse3D.z / 10));
 		int index = 0;
@@ -314,9 +317,11 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 					float& snapHeight = gnd->cubes[tt.x][tt.y]->heights[ti];
 					if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
 					{
-						if (originalHeights.find(gnd->cubes[tt.x][tt.y]) == originalHeights.end())
+						if (originalHeights.find(gnd->cubes[tt.x][tt.y]) == originalHeights.end()) {
 							for (int i = 0; i < 4; i++)
 								originalHeights[gnd->cubes[tt.x][tt.y]][i] = gnd->cubes[tt.x][tt.y]->heights[i];
+							tilesProcessed.push_back(tt);
+						}
 
 						if (ImGui::GetIO().KeyShift)
 							snapHeight = glm::min(minMax, snapHeight + browEdit->windowData.heightEdit.doodleSpeed * (glm::mix(1.0f, glm::max(0.0f, 1.0f - glm::length(glm::vec2(x - browEdit->windowData.heightEdit.doodleSize / 2.0f, y - browEdit->windowData.heightEdit.doodleSize / 2.0f))/ browEdit->windowData.heightEdit.doodleSize), browEdit->windowData.heightEdit.doodleHardness)));
@@ -345,9 +350,10 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 					for (int i = 0; i < 4; i++)
 						newHeights[kv.first][i] = kv.first->heights[i];
 
-				map->doAction(new CubeHeightChangeAction<Gnd, Gnd::Cube>(originalHeights, newHeights), browEdit);
+				map->doAction(new CubeHeightChangeAction<Gnd, Gnd::Cube>(originalHeights, newHeights, tilesProcessed), browEdit);
 			}
 			originalHeights.clear();
+			tilesProcessed.clear();
 		}
 
 	}
@@ -401,15 +407,16 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 			static glm::vec3 originalCorners[4];
 
 			glm::vec3 pos[9];
-			pos[0] = gnd->getPos(minValues.x, minValues.y, 0);
-			pos[1] = gnd->getPos(maxValues.x, minValues.y, 1);
-			pos[2] = gnd->getPos(minValues.x, maxValues.y, 2);
-			pos[3] = gnd->getPos(maxValues.x, maxValues.y, 3);
-			pos[4] = (pos[0] + pos[1] + pos[2] + pos[3]) / 4.0f;
-			pos[5] = (pos[0] + pos[1]) / 2.0f;
-			pos[6] = (pos[2] + pos[3]) / 2.0f;
-			pos[7] = (pos[0] + pos[2]) / 2.0f;
-			pos[8] = (pos[1] + pos[3]) / 2.0f;
+			glm::vec3 posGadget[9];
+			posGadget[0] = pos[0] = gnd->getPos(minValues.x, minValues.y, 0);
+			posGadget[1] = pos[1] = gnd->getPos(maxValues.x, minValues.y, 1);
+			posGadget[2] = pos[2] = gnd->getPos(minValues.x, maxValues.y, 2);
+			posGadget[3] = pos[3] = gnd->getPos(maxValues.x, maxValues.y, 3);
+			posGadget[4] = pos[4] = (pos[0] + pos[1] + pos[2] + pos[3]) / 4.0f;
+			posGadget[5] = pos[5] = (pos[0] + pos[1]) / 2.0f;
+			posGadget[6] = pos[6] = (pos[2] + pos[3]) / 2.0f;
+			posGadget[7] = pos[7] = (pos[0] + pos[2]) / 2.0f;
+			posGadget[8] = pos[8] = (pos[1] + pos[3]) / 2.0f;
 
 			ImGui::Begin("Height Edit");
 			if (ImGui::CollapsingHeader("Selection Details", ImGuiTreeNodeFlags_DefaultOpen))
@@ -441,7 +448,7 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 					continue;
 				if (!browEdit->windowData.heightEdit.showEdgeArrows && i > 4)
 					continue;
-				glm::mat4 mat = glm::translate(glm::mat4(1.0f), pos[i]);
+				glm::mat4 mat = glm::translate(glm::mat4(1.0f), posGadget[i]);
 				if (maxValues.x - minValues.x <= 1 || maxValues.y - minValues.y <= 1)
 					mat = glm::scale(mat, glm::vec3(0.25f, 0.25f, 0.25f));
 
@@ -483,7 +490,7 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 					for (auto& t : originalValues)
 						for (int ii = 0; ii < 4; ii++)
 							newValues[t.first][ii] = t.first->heights[ii];
-					map->doAction(new CubeHeightChangeAction<Gnd, Gnd::Cube>(originalValues, newValues), browEdit);
+					map->doAction(new CubeHeightChangeAction<Gnd, Gnd::Cube>(originalValues, newValues, map->tileSelection), browEdit);
 				}
 				else if (gadgetHeight[i].axisDragged)
 				{
@@ -577,8 +584,16 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 
 					for (auto& t : map->tileSelection)
 					{
-						if (gndRenderer)
+						if (gndRenderer) {
 							gndRenderer->setChunkDirty(t.x, t.y);
+
+							// For walls on the chunk's edge
+							if (gnd->inMap(glm::ivec2(t.x, t.y - 1)))
+								gndRenderer->setChunkDirty(t.x, t.y - 1);
+
+							if (gnd->inMap(glm::ivec2(t.x - 1, t.y)))
+								gndRenderer->setChunkDirty(t.x - 1, t.y);
+						}
 						for (int ii = 0; ii < 4; ii++)
 						{
 							// 0 1
@@ -952,11 +967,11 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 						{
 							auto cube = gnd->cubes[x][y];
 							verts.push_back(VertexP3T2N3(glm::vec3(10 * x, -cube->h3 + dist, 10 * gnd->height - 10 * y), glm::vec2(0), cube->normals[2]));
-							verts.push_back(VertexP3T2N3(glm::vec3(10 * x, -cube->h1 + dist, 10 * gnd->height - 10 * y + 10), glm::vec2(0), cube->normals[0]));
+							verts.push_back(VertexP3T2N3(glm::vec3(10 * x + 10, -cube->h2 + dist, 10 * gnd->height - 10 * y + 10), glm::vec2(0), cube->normals[1]));
 							verts.push_back(VertexP3T2N3(glm::vec3(10 * x + 10, -cube->h4 + dist, 10 * gnd->height - 10 * y), glm::vec2(0), cube->normals[3]));
 
 							verts.push_back(VertexP3T2N3(glm::vec3(10 * x, -cube->h1 + dist, 10 * gnd->height - 10 * y + 10), glm::vec2(0), cube->normals[0]));
-							verts.push_back(VertexP3T2N3(glm::vec3(10 * x + 10, -cube->h4 + dist, 10 * gnd->height - 10 * y), glm::vec2(0), cube->normals[3]));
+							verts.push_back(VertexP3T2N3(glm::vec3(10 * x, -cube->h3 + dist, 10 * gnd->height - 10 * y), glm::vec2(0), cube->normals[2]));
 							verts.push_back(VertexP3T2N3(glm::vec3(10 * x + 10, -cube->h2 + dist, 10 * gnd->height - 10 * y + 10), glm::vec2(0), cube->normals[1]));
 						}
 					}
