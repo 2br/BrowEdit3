@@ -219,7 +219,7 @@ void BrowEdit::showObjectWindow()
 			windowData.objectWindowSelectedTreeNode = root;
 	};
 	startTree("Models", "data\\model\\");
-	startTree("Sounds", "data\\wav\\");
+	startTree("Sounds", "data\\sound\\");
 	startTree("Lights", "data\\lights\\");
 	startTree("Effects", "data\\effects\\");
 	startTree("Prefabs", "data\\prefabs\\");
@@ -268,7 +268,7 @@ void BrowEdit::showObjectWindow()
 					}
 					texture = (ImTextureID)(long long)it->second->fbo->texid[0];
 				}
-				else if (path.substr(path.size() - 4) == ".wav")
+				else if (path.substr(path.size() - 4) == ".mp3")
 					texture = (ImTextureID)(long long)soundTexture->id();
 				else if (path.substr(path.size() - 5) == ".json")
 				{
@@ -434,9 +434,9 @@ void BrowEdit::showObjectWindow()
 								newNodeHeight = false;
 							}
 						}
-						else if (file.substr(file.size() - 4) == ".wav")
+						else if (file.substr(file.size() - 4) == ".mp3")
 						{
-							auto s = new RswSound(util::iso_8859_1_to_utf8(path.substr(9))); //remove data\wav\ 
+							auto s = new RswSound(util::iso_8859_1_to_utf8(path)); //remove data\wav\ 
 							Node* newNode = new Node(file);
 							newNode->addComponent(new RswObject());
 							newNode->addComponent(s);
@@ -451,7 +451,7 @@ void BrowEdit::showObjectWindow()
 				}
 				if (ImGui::BeginPopupContextWindow("Object Tags"))
 				{
-					if (file.substr(file.size() - 4) == ".wav")
+					if (file.substr(file.size() - 4) == ".mp3")
 					{
 						if (ImGui::Button("Play"))
 						{
@@ -572,7 +572,7 @@ void BrowEdit::showObjectWindow()
 			{
 				if (file.find(".rsm") == std::string::npos && 
 					file.find(".rsm2") == std::string::npos &&
-					file.find(".wav") == std::string::npos &&
+					file.find(".mp3") == std::string::npos &&
 					file.find(".json") == std::string::npos)
 					continue;
 				buildBox(file, false);
