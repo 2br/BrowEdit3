@@ -655,6 +655,8 @@ void ModelEditor::run(BrowEdit* browEdit)
 					tinygltf::TinyGLTF loader;
 					loaded = loader.LoadBinaryFromFile(&model, &err, &warn, path);
 				}
+
+
 				if(loaded)
 				{
 					std::cout << "Loaded file " << filename << warn << std::endl;
@@ -672,15 +674,19 @@ void ModelEditor::run(BrowEdit* browEdit)
 						mesh->texCoords.clear();
 						mesh->faces.clear();
 						mesh->textures.clear();
+						
+						
 						std::set<int> texturesUsed;
 						std::map<int, int> textureMap;
-						for (auto& primitive : model.meshes[0].primitives)
+						for (auto& primitive : model.meshes[0].primitives) {
+							std::cout << "This file has too many models" << std::endl;
 							texturesUsed.insert(model.materials[primitive.material].values["baseColorTexture"].TextureIndex());
+						}
 						for (auto& tex : texturesUsed)
 						{
 							textureMap[tex] = (int)mesh->textures.size();
 							mesh->textures.push_back((int)rsm->textures.size());
-							rsm->textures.push_back("texture.bmp");
+							rsm->textures.push_back("black.png");
 						}
 
 
