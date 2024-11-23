@@ -5,6 +5,7 @@
 #include <map>
 #include <iostream>
 #include <mutex>
+#include <regex>
 
 namespace util
 {
@@ -32,15 +33,18 @@ namespace util
 		template<class R = T>
 		static R* load(const std::string &str)
 		{
+			// Remove curly braces and everything inside them
+			std::string cleanedStr = std::regex_replace(str, std::regex("\\{[^}]*\\}"), "");
+
 			const std::lock_guard<std::mutex> lock(loadMutex);
-			auto it = resmap.find(str);
+			auto it = resmap.find(cleanedStr);
 			if (it != resmap.end())
 			{
 				it->second.second++;
 				return dynamic_cast<R*>(it->second.first);
 			}
-			R* r = new R(str);
-			resmap[str] = std::pair<T*, int>(r, 1);
+			R* r = new R(cleanedStr);
+			resmap[cleanedStr] = std::pair<T*, int>(r, 1);
 			return r;
 		}
 
