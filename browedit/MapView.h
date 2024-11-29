@@ -202,10 +202,10 @@ public:
 	void rebuildObjectRotateModeGrid();
 
 	//todo, move this to a struct for better organisation
-	bool viewLightmapShadow = true;
+	bool viewLightmapShadow = false;
 	bool viewLightmapColor = true;
 	bool viewColors = true;
-	bool viewLighting = true;
+	bool viewLighting = false;
 	bool smoothColors = false;
 	bool viewTextures = true;
 	bool viewEmptyTiles = true;
