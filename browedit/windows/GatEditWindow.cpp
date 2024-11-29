@@ -6,7 +6,9 @@
 #include <browedit/Map.h>
 #include <browedit/Node.h>
 #include <browedit/gl/Texture.h>
+#include <browedit/actions/GroupAction.h>
 #include <browedit/actions/CubeHeightChangeAction.h>
+#include <browedit/actions/GatTileChangeAction.h>
 
 extern std::string gatTypes[];
 extern ImVec4 enabledColor;// (144 / 255.0f, 193 / 255.0f, 249 / 255.0f, 0.5f);
@@ -209,10 +211,36 @@ void BrowEdit::showGatWindow()
 		static bool setHeight = true;
 		static bool setObjectWalkable = true;
 		static bool blockUnderWater = true;
+		static bool useSnipableAsUnwalkable = false;
+		static int unwalkableType;
 		static std::vector<int> textureMap; //TODO: this won't work well with multiple maps
 		auto gnd = map->rootNode->getComponent<Gnd>();
 		if (textureMap.size() != gnd->textures.size())
 			textureMap.resize(gnd->textures.size(), -1);
+
+		// Change unwalkable type
+		unwalkableType = useSnipableAsUnwalkable ? 5 : 1;
+
+		// Apply selected gat type to selection
+		if (ImGui::Button("Apply type to selection")) {
+
+			static GroupAction* gatGroupAction = nullptr;
+			// All tiles
+			for (auto tile : activeMapView->map->gatSelection) {
+				auto action = new GatTileChangeAction(tile, gat->cubes[tile.x][tile.y], windowData.gatEdit.gatIndex);
+				action->perform(map, this);
+
+				if (gatGroupAction == nullptr) {
+					gatGroupAction = new GroupAction();
+				}
+				gatGroupAction->addAction(action);
+			}
+
+			if (gatGroupAction != nullptr) {
+				map->doAction(gatGroupAction, this);
+				gatGroupAction = nullptr;
+			}
+		}
 
 		if (ImGui::Button("AutoGat"))
 		{
@@ -300,7 +328,7 @@ void BrowEdit::showGatWindow()
 								gat->cubes[x][y]->gatType = 0;
 								float angle = glm::dot(gat->cubes[x][y]->normal, glm::vec3(0, -1, 0));
 								if (angle < 0.9)
-									gat->cubes[x][y]->gatType = 1;
+									gat->cubes[x][y]->gatType = unwalkableType;
 								else
 								{
 									bool stepHeight = false;
@@ -318,7 +346,7 @@ void BrowEdit::showGatWindow()
 										}
 									}
 									if (stepHeight)
-										gat->cubes[x][y]->gatType = 1;
+										gat->cubes[x][y]->gatType = unwalkableType;
 
 								}
 							}
@@ -332,7 +360,7 @@ void BrowEdit::showGatWindow()
 										underWater = true;
 								}
 								if (underWater)
-									gat->cubes[x][y]->gatType = 1;
+									gat->cubes[x][y]->gatType = unwalkableType;
 							}
 							if (gatType > -1 && setObjectWalkable)
 								gat->cubes[x][y]->gatType = gatType;
@@ -358,12 +386,13 @@ void BrowEdit::showGatWindow()
 				});
 			t.detach();
 		}
+		
 		ImGui::Checkbox("Gat selection only", &selectionOnly);
 		ImGui::Checkbox("Set walkability", &setWalkable);
 		ImGui::Checkbox("Set height", &setHeight);
 		ImGui::Checkbox("Set object walkability", &setObjectWalkable);
 		ImGui::Checkbox("Make tiles under water unwalkable", &blockUnderWater);
-
+		ImGui::Checkbox("Use Snipable as unwalkable", &useSnipableAsUnwalkable);
 		if (ImGui::Button("WaterGat"))
 		{
 			windowData.progressWindowVisible = true;
