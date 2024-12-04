@@ -462,8 +462,8 @@ void BrowEdit::showTextureBrushWindow()
 		glm::vec2 uvSize = activeMapView->textureEditUv2 - activeMapView->textureEditUv1;
 		// Updates brush size based on selection
 		if (activeMapView->textureBrushUpdateBySelection) {
-			activeMapView->textureBrushWidth = (int)(uvSize.x * 4);
-			activeMapView->textureBrushHeight = (int)(uvSize.y * 4);
+			activeMapView->textureBrushWidth  = (int)glm::round(uvSize.x * 4);
+			activeMapView->textureBrushHeight = (int)glm::round(uvSize.y * 4);
 		}
 				
 		float textureBrushHeight = activeMapView->textureBrushWidth * (uvSize.y / uvSize.x);
