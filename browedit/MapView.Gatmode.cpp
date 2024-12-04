@@ -25,7 +25,7 @@
 #include <iostream>
 #include <queue>
 
-std::string gatTypes[] = {"Walkable", "Not Walkable", "Spawn", "Water", "Tree" , "Snipable" , "No Walk, Water" , "Spawn Water" , "" , "" , "" , "" , "" , "" , "" , ""};
+std::string gatTypes[] = {"Walkable", "Not Walkable", "High Elevation", "Water", "Tree" , "Snipable" , "No Walk, Water" , "Spawn Water" , "Spawn" , "" , "" , "" , "" , "" , "" , ""};
 
 float TriangleHeight(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& p);
 bool TriangleContainsPoint(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& p);
