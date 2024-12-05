@@ -212,35 +212,18 @@ void BrowEdit::showGatWindow()
 		static bool setObjectWalkable = true;
 		static bool blockUnderWater = true;
 		static bool useSnipableAsUnwalkable = false;
+		static bool blockUnreachableCells = true;
 		static int unwalkableType;
+		static float angleLimit = 25.0f;
 		static std::vector<int> textureMap; //TODO: this won't work well with multiple maps
+		
 		auto gnd = map->rootNode->getComponent<Gnd>();
 		if (textureMap.size() != gnd->textures.size())
 			textureMap.resize(gnd->textures.size(), -1);
 
 		// Change unwalkable type
 		unwalkableType = useSnipableAsUnwalkable ? 5 : 1;
-
-		// Apply selected gat type to selection
-		if (ImGui::Button("Apply type to selection")) {
-
-			static GroupAction* gatGroupAction = nullptr;
-			// All tiles
-			for (auto tile : activeMapView->map->gatSelection) {
-				auto action = new GatTileChangeAction(tile, gat->cubes[tile.x][tile.y], windowData.gatEdit.gatIndex);
-				action->perform(map, this);
-
-				if (gatGroupAction == nullptr) {
-					gatGroupAction = new GroupAction();
-				}
-				gatGroupAction->addAction(action);
-			}
-
-			if (gatGroupAction != nullptr) {
-				map->doAction(gatGroupAction, this);
-				gatGroupAction = nullptr;
-			}
-		}
+		
 
 		if (ImGui::Button("AutoGat"))
 		{
@@ -254,6 +237,8 @@ void BrowEdit::showGatWindow()
 					debugPoints.resize(2);
 
 					std::map<int, std::map<int, std::pair<int, int>>> gatInfo;
+					// Take angle threshold to calculate walkability
+					float angleThreshold = glm::cos(glm::radians(angleLimit));
 
 					auto rsw = map->rootNode->getComponent<Rsw>();
 					for (int x = 0; x < gat->width; x++)
@@ -296,14 +281,15 @@ void BrowEdit::showGatWindow()
 											if (collisions.size() > 0 && rswModel->gatStraightType > 0)
 												raiseType = rswModel->gatStraightType;
 										}
-										if (rswModel->gatType > -1 && collisions.size() > 0)
-										{
+										// If has to force a gat type on this model, check the mode flag
+										if (rswModel->gatType > -1 && collisions.size() > 0 ) {
 											gatType = rswModel->gatType;
 										}
 									}
-									});
-								if(setHeight)
+								});
+								if (setHeight) {
 									gat->cubes[x][y]->heights[i] = -height.y;
+								}
 							}
 
 							gatInfo[x][y] = std::pair<int, int>(raiseType, gatType);
@@ -322,16 +308,19 @@ void BrowEdit::showGatWindow()
 							int raiseType = gatInfo[x][y].first;
 							int gatType = gatInfo[x][y].second;
 
-							if (setWalkable)
-							{
+							if (setWalkable) {
+
 								gat->cubes[x][y]->calcNormal();
-								gat->cubes[x][y]->gatType = 0;
+								gat->cubes[x][y]->gatType = gatType > -1 ? gatType : 0;
 								float angle = glm::dot(gat->cubes[x][y]->normal, glm::vec3(0, -1, 0));
-								if (angle < 0.9)
+								// Check for angle
+								if (angle < angleThreshold ) {
 									gat->cubes[x][y]->gatType = unwalkableType;
-								else
-								{
+								}
+								// Check neighbor
+								else { 
 									bool stepHeight = false;
+
 									glm::ivec2 t(x, y);
 									for (int i = 0; i < 4; i++)
 									{
@@ -341,12 +330,16 @@ void BrowEdit::showGatWindow()
 											glm::ivec2 tt = t + glm::ivec2(connectInfo.x, connectInfo.y);
 											if (!gat->inMap(tt))
 												continue;
-											if (gat->cubes[x][y]->heights[i] - gat->cubes[tt.x][tt.y]->heights[connectInfo.z] > 5)
+											// Step is too steep
+											if (gat->cubes[x][y]->heights[i] - gat->cubes[tt.x][tt.y]->heights[connectInfo.z] > 5) {
 												stepHeight = true;
+											}
 										}
 									}
-									if (stepHeight)
+
+									if (stepHeight) {
 										gat->cubes[x][y]->gatType = unwalkableType;
+									}
 
 								}
 							}
@@ -362,8 +355,11 @@ void BrowEdit::showGatWindow()
 								if (underWater)
 									gat->cubes[x][y]->gatType = unwalkableType;
 							}
-							if (gatType > -1 && setObjectWalkable)
+
+							/*if (gatType > -1 && setObjectWalkable) {
 								gat->cubes[x][y]->gatType = gatType;
+							}*/
+
 							if (raiseType > -1)
 							{
 								for (int i = 1; i < 4; i++)
@@ -378,7 +374,39 @@ void BrowEdit::showGatWindow()
 							}
 						}
 					}
+					// This is to block walking cells in the middle of many unwalkable
+					if (blockUnreachableCells) {
+						windowData.progressWindowText = "Post processing cells";
+						for (int x = 0; x < gat->width; x++)
+						{
+							for (int y = 0; y < gat->height; y++)
+							{
+								if (selectionOnly && std::find(map->gatSelection.begin(), map->gatSelection.end(), glm::ivec2(x, y)) == map->gatSelection.end())
+									continue;
 
+								windowData.progressWindowProgres = 0.5f + 0.5f * (x / (float)gat->width) + (1.0f / gat->width) * (y / (float)gat->height);
+								int unwalkableNeighbors = 0;
+								glm::ivec2 t(x, y);
+								for (int i = 0; i < 4; i++)
+								{
+									for (int ii = 0; ii < 4; ii++)
+									{
+										auto& connectInfo = gat->connectInfo[i][ii];
+										glm::ivec2 tt = t + glm::ivec2(connectInfo.x, connectInfo.y);
+										if (!gat->inMap(tt))
+											continue;
+
+										if (gat->cubes[tt.x][tt.y]->gatType == unwalkableType) {
+											unwalkableNeighbors++;
+										}
+									}
+								}
+								if (unwalkableNeighbors >= 10) {
+									gat->cubes[x][y]->gatType = unwalkableType;
+								}
+							}
+						}
+					}
 					windowData.progressWindowProgres = 1;
 					windowData.progressWindowVisible = false;
 
@@ -389,10 +417,14 @@ void BrowEdit::showGatWindow()
 		
 		ImGui::Checkbox("Gat selection only", &selectionOnly);
 		ImGui::Checkbox("Set walkability", &setWalkable);
+		ImGui::SameLine();
+		ImGui::DragFloat("Angle", &angleLimit, 0.1f, 0.0, 90.0f);
 		ImGui::Checkbox("Set height", &setHeight);
 		ImGui::Checkbox("Set object walkability", &setObjectWalkable);
 		ImGui::Checkbox("Make tiles under water unwalkable", &blockUnderWater);
 		ImGui::Checkbox("Use Snipable as unwalkable", &useSnipableAsUnwalkable);
+		ImGui::Checkbox("Block unreachable cells by neighbors", &blockUnreachableCells);
+
 		if (ImGui::Button("WaterGat"))
 		{
 			windowData.progressWindowVisible = true;
@@ -440,6 +472,27 @@ void BrowEdit::showGatWindow()
 					gatRenderer->allDirty = true;
 				});
 			t.detach();
+		}
+
+		// Apply selected gat type to selection
+		if (ImGui::Button("Set selection to type")) {
+
+			static GroupAction* gatGroupAction = nullptr;
+			// All tiles
+			for (auto tile : activeMapView->map->gatSelection) {
+				auto action = new GatTileChangeAction(tile, gat->cubes[tile.x][tile.y], windowData.gatEdit.gatIndex);
+				action->perform(map, this);
+
+				if (gatGroupAction == nullptr) {
+					gatGroupAction = new GroupAction();
+				}
+				gatGroupAction->addAction(action);
+			}
+
+			if (gatGroupAction != nullptr) {
+				map->doAction(gatGroupAction, this);
+				gatGroupAction = nullptr;
+			}
 		}
 
 		ImGui::TreePop();
