@@ -208,11 +208,12 @@ void BrowEdit::showGatWindow()
 
 		static bool selectionOnly = false;
 		static bool setWalkable = true;
-		static bool setHeight = true;
 		static bool setObjectWalkable = true;
 		static bool blockUnderWater = true;
 		static bool useSnipableAsUnwalkable = false;
 		static bool blockUnreachableCells = true;
+		static int setHeightType = 2;
+		const char* heightType[] = { "None", "Ground", "Models" };
 		static int unwalkableType;
 		static float angleLimit = 25.0f;
 		static std::vector<int> textureMap; //TODO: this won't work well with multiple maps
@@ -232,160 +233,97 @@ void BrowEdit::showGatWindow()
 			windowData.progressWindowText = "Calculating gat";
 
 			std::thread t([this, gnd, gat, map, gatRenderer]()
+			{
+				debugPoints.clear();
+				debugPoints.resize(2);
+
+				std::map<int, std::map<int, std::pair<int, int>>> gatInfo;
+				// Take angle threshold to calculate walkability
+				float angleThreshold = glm::cos(glm::radians(angleLimit));
+
+				auto rsw = map->rootNode->getComponent<Rsw>();
+				for (int x = 0; x < gat->width; x++)
 				{
-					debugPoints.clear();
-					debugPoints.resize(2);
-
-					std::map<int, std::map<int, std::pair<int, int>>> gatInfo;
-					// Take angle threshold to calculate walkability
-					float angleThreshold = glm::cos(glm::radians(angleLimit));
-
-					auto rsw = map->rootNode->getComponent<Rsw>();
-					for (int x = 0; x < gat->width; x++)
+					for (int y = 0; y < gat->height; y++)
 					{
-						for (int y = 0; y < gat->height; y++)
+						if (selectionOnly && std::find(map->gatSelection.begin(), map->gatSelection.end(), glm::ivec2(x, y)) == map->gatSelection.end())
+							continue;
+
+						windowData.progressWindowProgres = 0.5f * (x / (float)gat->width) + (1.0f / gat->width) * (y / (float)gat->height);
+
+						int raiseType = -1;
+						int gatType = -1;
+
+						for (int i = 0; i < 4; i++)
 						{
-							if (selectionOnly && std::find(map->gatSelection.begin(), map->gatSelection.end(), glm::ivec2(x, y)) == map->gatSelection.end())
-								continue;
+							glm::vec3 pos = gat->getPos(x, y, i, 0.01f);
 
-							windowData.progressWindowProgres = 0.5f * (x / (float)gat->width) + (1.0f / gat->width) * (y / (float)gat->height);
-
-							int raiseType = -1;
-							int gatType = -1;
-
-							for (int i = 0; i < 4; i++)
+							//debugPoints[0].push_back(pos);
+							pos.y = 1000;
+							math::Ray ray(pos, glm::vec3(0, -1, 0));
+							auto height = gnd->rayCast(ray, true, x / 2 - 2, y / 2 - 2, x / 2 + 2, y / 2 + 2);
+							if (height.y > 100000 || height.y < -100000)
 							{
-								glm::vec3 pos = gat->getPos(x, y, i, 0.01f);
+								std::cout << "wtf" << std::endl;
+								height = gnd->rayCast(ray, true);// , x / 2 - 2, y / 2 - 2, x / 2 + 2, y / 2 + 2);
+							}
+							//debugPoints[1].push_back(height);
 
-								//debugPoints[0].push_back(pos);
-								pos.y = 1000;
-								math::Ray ray(pos, glm::vec3(0, -1, 0));
-								auto height = gnd->rayCast(ray, true, x / 2 - 2, y / 2 - 2, x / 2 + 2, y / 2 + 2);
-								if (height.y > 100000 || height.y < -100000)
+							map->rootNode->traverse([&](Node* n) {
+								auto rswModel = n->getComponent<RswModel>();
+								if (rswModel)
 								{
-									std::cout << "wtf" << std::endl;
-									height = gnd->rayCast(ray, true);// , x / 2 - 2, y / 2 - 2, x / 2 + 2, y / 2 + 2);
-								}
-								//debugPoints[1].push_back(height);
-
-								map->rootNode->traverse([&](Node* n) {
-									auto rswModel = n->getComponent<RswModel>();
-									if (rswModel)
+									auto collider = n->getComponent<RswModelCollider>();
+									auto collisions = collider->getCollisions(ray);
+									if (rswModel->gatCollision && setHeightType == 2)
 									{
-										auto collider = n->getComponent<RswModelCollider>();
-										auto collisions = collider->getCollisions(ray);
-										if (rswModel->gatCollision)
-										{
-											for (const auto& c : collisions)
-												height.y = glm::max(height.y, c.y);
-											if (collisions.size() > 0 && rswModel->gatStraightType > 0)
-												raiseType = rswModel->gatStraightType;
-										}
-										// If has to force a gat type on this model, check the mode flag
-										if (rswModel->gatType > -1 && collisions.size() > 0 ) {
-											gatType = rswModel->gatType;
-										}
+										for (const auto& c : collisions)
+											height.y = glm::max(height.y, c.y);
+										if (collisions.size() > 0 && rswModel->gatStraightType > 0)
+											raiseType = rswModel->gatStraightType;
 									}
-								});
-								if (setHeight) {
-									gat->cubes[x][y]->heights[i] = -height.y;
-								}
-							}
-
-							gatInfo[x][y] = std::pair<int, int>(raiseType, gatType);
-						}
-					}
-
-					for (int x = 0; x < gat->width; x++)
-					{
-						for (int y = 0; y < gat->height; y++)
-						{
-							if (selectionOnly && std::find(map->gatSelection.begin(), map->gatSelection.end(), glm::ivec2(x, y)) == map->gatSelection.end())
-								continue;
-
-							windowData.progressWindowProgres = 0.5f + 0.5f * (x / (float)gat->width) + (1.0f / gat->width) * (y / (float)gat->height);
-
-							int raiseType = gatInfo[x][y].first;
-							int gatType = gatInfo[x][y].second;
-
-							if (setWalkable) {
-
-								gat->cubes[x][y]->calcNormal();
-								gat->cubes[x][y]->gatType = gatType > -1 ? gatType : 0;
-								float angle = glm::dot(gat->cubes[x][y]->normal, glm::vec3(0, -1, 0));
-								// Check for angle
-								if (angle < angleThreshold ) {
-									gat->cubes[x][y]->gatType = unwalkableType;
-								}
-								// Check neighbor
-								else { 
-									bool stepHeight = false;
-
-									glm::ivec2 t(x, y);
-									for (int i = 0; i < 4; i++)
-									{
-										for (int ii = 0; ii < 4; ii++)
-										{
-											auto& connectInfo = gat->connectInfo[i][ii];
-											glm::ivec2 tt = t + glm::ivec2(connectInfo.x, connectInfo.y);
-											if (!gat->inMap(tt))
-												continue;
-											// Step is too steep
-											if (gat->cubes[x][y]->heights[i] - gat->cubes[tt.x][tt.y]->heights[connectInfo.z] > 5) {
-												stepHeight = true;
-											}
-										}
+									// If has to force a gat type on this model
+									if (rswModel->gatType > -1 && collisions.size() > 0 ) {
+										gatType = rswModel->gatType;
 									}
-
-									if (stepHeight) {
-										gat->cubes[x][y]->gatType = unwalkableType;
-									}
-
 								}
-							}
-							if (blockUnderWater)
-							{
-								bool underWater = false;
-								for (int i = 0; i < 4; i++) {
-									auto water = rsw->water.getFromGat(x, y, gnd);
-
-									if (gat->cubes[x][y]->heights[i] > water->height)
-										underWater = true;
-								}
-								if (underWater)
-									gat->cubes[x][y]->gatType = unwalkableType;
-							}
-
-							/*if (gatType > -1 && setObjectWalkable) {
-								gat->cubes[x][y]->gatType = gatType;
-							}*/
-
-							if (raiseType > -1)
-							{
-								for (int i = 1; i < 4; i++)
-								{
-									if (raiseType == 1)
-										gat->cubes[x][y]->heights[0] = glm::min(gat->cubes[x][y]->heights[0], gat->cubes[x][y]->heights[i]);
-									else if (raiseType == 2)
-										gat->cubes[x][y]->heights[0] = glm::max(gat->cubes[x][y]->heights[0], gat->cubes[x][y]->heights[i]);
-								}
-								for (int i = 1; i < 4; i++)
-									gat->cubes[x][y]->heights[i] = gat->cubes[x][y]->heights[0];
+							});
+							if (setHeightType) {
+								gat->cubes[x][y]->heights[i] = -height.y;
 							}
 						}
-					}
-					// This is to block walking cells in the middle of many unwalkable
-					if (blockUnreachableCells) {
-						windowData.progressWindowText = "Post processing cells";
-						for (int x = 0; x < gat->width; x++)
-						{
-							for (int y = 0; y < gat->height; y++)
-							{
-								if (selectionOnly && std::find(map->gatSelection.begin(), map->gatSelection.end(), glm::ivec2(x, y)) == map->gatSelection.end())
-									continue;
 
-								windowData.progressWindowProgres = 0.5f + 0.5f * (x / (float)gat->width) + (1.0f / gat->width) * (y / (float)gat->height);
-								int unwalkableNeighbors = 0;
+						gatInfo[x][y] = std::pair<int, int>(raiseType, gatType);
+					}
+				}
+
+				for (int x = 0; x < gat->width; x++)
+				{
+					for (int y = 0; y < gat->height; y++)
+					{
+						if (selectionOnly && std::find(map->gatSelection.begin(), map->gatSelection.end(), glm::ivec2(x, y)) == map->gatSelection.end())
+							continue;
+
+						windowData.progressWindowProgres = 0.5f + 0.5f * (x / (float)gat->width) + (1.0f / gat->width) * (y / (float)gat->height);
+
+						int raiseType = gatInfo[x][y].first;
+						int gatType = gatInfo[x][y].second;
+
+						if (setWalkable) {
+
+								
+							gat->cubes[x][y]->calcNormal();
+							// Set the gat type if is setting objects
+							gat->cubes[x][y]->gatType = (setObjectWalkable && gatType > -1) ? gatType : 0;
+							float angle = glm::dot(gat->cubes[x][y]->normal, glm::vec3(0, -1, 0));
+							// Check for angle
+							if (angle < angleThreshold ) {
+								gat->cubes[x][y]->gatType = unwalkableType;
+							}
+							// Check neighbor
+							else { 
+								bool stepHeight = false;
+
 								glm::ivec2 t(x, y);
 								for (int i = 0; i < 4; i++)
 								{
@@ -396,35 +334,94 @@ void BrowEdit::showGatWindow()
 										if (!gat->inMap(tt))
 											continue;
 
-										if (gat->cubes[tt.x][tt.y]->gatType == unwalkableType) {
-											unwalkableNeighbors++;
+										// Step is too steep
+										if (gat->cubes[x][y]->heights[i] - gat->cubes[tt.x][tt.y]->heights[connectInfo.z] > 5) {
+											stepHeight = true;
 										}
 									}
 								}
-								if (unwalkableNeighbors >= 10) {
+
+								if (stepHeight) {
 									gat->cubes[x][y]->gatType = unwalkableType;
 								}
+
+							}
+						}
+						if (blockUnderWater)
+						{
+							bool underWater = false;
+							for (int i = 0; i < 4; i++) {
+								auto water = rsw->water.getFromGat(x, y, gnd);
+
+								if (gat->cubes[x][y]->heights[i] > water->height)
+									underWater = true;
+							}
+							if (underWater)
+								gat->cubes[x][y]->gatType = unwalkableType;
+						}
+
+						/*if (gatType > -1 && setObjectWalkable) {
+							gat->cubes[x][y]->gatType = gatType;
+						}*/
+
+						if (raiseType > -1)
+						{
+							for (int i = 1; i < 4; i++)
+							{
+								if (raiseType == 1)
+									gat->cubes[x][y]->heights[0] = glm::min(gat->cubes[x][y]->heights[0], gat->cubes[x][y]->heights[i]);
+								else if (raiseType == 2)
+									gat->cubes[x][y]->heights[0] = glm::max(gat->cubes[x][y]->heights[0], gat->cubes[x][y]->heights[i]);
+							}
+							for (int i = 1; i < 4; i++)
+								gat->cubes[x][y]->heights[i] = gat->cubes[x][y]->heights[0];
+						}
+					}
+				}
+				// This is to block walking cells in the middle of many unwalkable
+				if (blockUnreachableCells) {
+					windowData.progressWindowText = "Post processing cells";
+					
+					for (int x = 0; x < gat->width; x++) {
+						for (int y = 0; y < gat->height; y++) {
+
+							// Selection only ... and its outside of selection
+							if (selectionOnly && std::find(map->gatSelection.begin(), map->gatSelection.end(), glm::ivec2(x, y)) == map->gatSelection.end())
+								continue;							
+						
+							// Update progress
+							windowData.progressWindowProgres = 0.5f + 0.5f * (x / (float)gat->width) + (1.0f / gat->width) * (y / (float)gat->height);
+
+							// Check neighboor
+							int unwalkableNeighbors = 0;
+							glm::ivec2 t(x, y);
+							for (int i = 0; i < 4; i++) {
+								for (int ii = 0; ii < 4; ii++) {
+									auto& connectInfo = gat->connectInfo[i][ii];
+									glm::ivec2 tt = t + glm::ivec2(connectInfo.x, connectInfo.y);
+									
+									if (!gat->inMap(tt))
+										continue;
+
+									if (gat->cubes[tt.x][tt.y]->gatType == unwalkableType) {
+										unwalkableNeighbors++;
+									}
+								}
+							}
+							if (unwalkableNeighbors >= 10) {
+								gat->cubes[x][y]->gatType = unwalkableType;
 							}
 						}
 					}
-					windowData.progressWindowProgres = 1;
-					windowData.progressWindowVisible = false;
+				}
+				windowData.progressWindowProgres = 1;
+				windowData.progressWindowVisible = false;
 
-					gatRenderer->allDirty = true;
-				});
+				gatRenderer->allDirty = true;
+			});
 			t.detach();
 		}
-		
-		ImGui::Checkbox("Gat selection only", &selectionOnly);
-		ImGui::Checkbox("Set walkability", &setWalkable);
 		ImGui::SameLine();
-		ImGui::DragFloat("Angle", &angleLimit, 0.1f, 0.0, 90.0f);
-		ImGui::Checkbox("Set height", &setHeight);
-		ImGui::Checkbox("Set object walkability", &setObjectWalkable);
-		ImGui::Checkbox("Make tiles under water unwalkable", &blockUnderWater);
-		ImGui::Checkbox("Use Snipable as unwalkable", &useSnipableAsUnwalkable);
-		ImGui::Checkbox("Block unreachable cells by neighbors", &blockUnreachableCells);
-
 		if (ImGui::Button("WaterGat"))
 		{
 			windowData.progressWindowVisible = true;
@@ -473,6 +470,27 @@ void BrowEdit::showGatWindow()
 				});
 			t.detach();
 		}
+
+		// Height set type
+		if (ImGui::BeginCombo("Height Type", heightType[setHeightType]))
+		{
+			for (int i = 0; i < IM_ARRAYSIZE(heightType); i++) {
+				if (ImGui::Selectable(heightType[i], setHeightType == i))
+					setHeightType = i;
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::Checkbox("Gat selection only", &selectionOnly);
+		ImGui::Checkbox("Set walkability", &setWalkable);
+		ImGui::SameLine();
+		ImGui::DragFloat("Angle", &angleLimit, 0.1f, 0.0, 90.0f);
+		
+		ImGui::Checkbox("Set object walkability", &setObjectWalkable);
+		ImGui::Checkbox("Make tiles under water unwalkable", &blockUnderWater);
+		ImGui::Checkbox("Use Snipable as unwalkable", &useSnipableAsUnwalkable);
+		ImGui::Checkbox("Block unreachable cells by neighbors", &blockUnreachableCells);
+
+		
 
 		// Apply selected gat type to selection
 		if (ImGui::Button("Set selection to type")) {
