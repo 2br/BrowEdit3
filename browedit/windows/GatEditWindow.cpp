@@ -206,16 +206,20 @@ void BrowEdit::showGatWindow()
 				ImGui::TreePop();
 			}*/
 
-		static bool selectionOnly = false;
+		static bool selectionOnly = true;
 		static bool setWalkable = true;
-		static bool setObjectWalkable = true;
 		static bool blockUnderWater = true;
 		static bool useSnipableAsUnwalkable = false;
 		static bool blockUnreachableCells = true;
+		// Height type
 		static int setHeightType = 2;
 		const char* heightType[] = { "None", "Ground", "Models" };
+		// Model walkability
+		static int setObjectWalkable = 1;
+		const char* objectWalkabilityType[] = { "None", "From above", "Parts that touch ground" };
+
 		static int unwalkableType;
-		static float angleLimit = 25.0f;
+		static float angleLimit = 15.0f;
 		static std::vector<int> textureMap; //TODO: this won't work well with multiple maps
 		
 		auto gnd = map->rootNode->getComponent<Gnd>();
@@ -258,32 +262,55 @@ void BrowEdit::showGatWindow()
 						{
 							glm::vec3 pos = gat->getPos(x, y, i, 0.01f);
 
-							//debugPoints[0].push_back(pos);
+							// Regular down ray
 							pos.y = 1000;
 							math::Ray ray(pos, glm::vec3(0, -1, 0));
+							
 							auto height = gnd->rayCast(ray, true, x / 2 - 2, y / 2 - 2, x / 2 + 2, y / 2 + 2);
 							if (height.y > 100000 || height.y < -100000)
 							{
 								std::cout << "wtf" << std::endl;
 								height = gnd->rayCast(ray, true);// , x / 2 - 2, y / 2 - 2, x / 2 + 2, y / 2 + 2);
 							}
+
+							// Invert ray
+							if (setObjectWalkable == 2) {
+								pos.y = -1000; 
+								ray = math::Ray(pos, glm::vec3(0, 1, 0));
+							}
 							//debugPoints[1].push_back(height);
 
 							map->rootNode->traverse([&](Node* n) {
 								auto rswModel = n->getComponent<RswModel>();
-								if (rswModel)
-								{
+								if (rswModel) {
 									auto collider = n->getComponent<RswModelCollider>();
 									auto collisions = collider->getCollisions(ray);
-									if (rswModel->gatCollision && setHeightType == 2)
-									{
-										for (const auto& c : collisions)
-											height.y = glm::max(height.y, c.y);
-										if (collisions.size() > 0 && rswModel->gatStraightType > 0)
-											raiseType = rswModel->gatStraightType;
+
+									// Use object for height  from this cell
+									if (rswModel->gatCollision ) {
+										// In this mode, we use object to set gat height
+										if (setHeightType == 2) {
+											for (const auto& c : collisions) {
+												height.y = glm::max(height.y, c.y);
+											}
+
+											if (!collisions.empty() && rswModel->gatStraightType > 0) {
+												raiseType = rswModel->gatStraightType;
+											}
+										}
+										// In this mode, we block when the model touches the ground
+										if (setObjectWalkable == 2) {
+											for (const auto& c : collisions) {
+												if (c.y <= height.y + 3.0f) {
+													gatType = unwalkableType;
+													break;
+												}
+											}
+										}
 									}
+
 									// If has to force a gat type on this model
-									if (rswModel->gatType > -1 && collisions.size() > 0 ) {
+									if (rswModel->gatType > -1 && !collisions.empty() ) {
 										gatType = rswModel->gatType;
 									}
 								}
@@ -311,7 +338,6 @@ void BrowEdit::showGatWindow()
 
 						if (setWalkable) {
 
-								
 							gat->cubes[x][y]->calcNormal();
 							// Set the gat type if is setting objects
 							gat->cubes[x][y]->gatType = (setObjectWalkable && gatType > -1) ? gatType : 0;
@@ -408,7 +434,7 @@ void BrowEdit::showGatWindow()
 									}
 								}
 							}
-							if (unwalkableNeighbors >= 10) {
+							if (unwalkableNeighbors >= 8) {
 								gat->cubes[x][y]->gatType = unwalkableType;
 							}
 						}
@@ -480,12 +506,21 @@ void BrowEdit::showGatWindow()
 			}
 			ImGui::EndCombo();
 		}
+		// Object walkability
+		if (ImGui::BeginCombo("Object walkability", objectWalkabilityType[setObjectWalkable]))
+		{
+			for (int i = 0; i < IM_ARRAYSIZE(objectWalkabilityType); i++) {
+				if (ImGui::Selectable(objectWalkabilityType[i], setObjectWalkable == i))
+					setObjectWalkable = i;
+			}
+			ImGui::EndCombo();
+		}
+
 		ImGui::Checkbox("Gat selection only", &selectionOnly);
 		ImGui::Checkbox("Set walkability", &setWalkable);
 		ImGui::SameLine();
 		ImGui::DragFloat("Angle", &angleLimit, 0.1f, 0.0, 90.0f);
 		
-		ImGui::Checkbox("Set object walkability", &setObjectWalkable);
 		ImGui::Checkbox("Make tiles under water unwalkable", &blockUnderWater);
 		ImGui::Checkbox("Use Snipable as unwalkable", &useSnipableAsUnwalkable);
 		ImGui::Checkbox("Block unreachable cells by neighbors", &blockUnreachableCells);
