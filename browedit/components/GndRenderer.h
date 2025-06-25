@@ -30,7 +30,7 @@ public:
 		glm::mat4 viewMatrix = glm::mat4(1.0f);
 
 		GndRenderContext();
-		virtual void preFrame(const glm::mat4& projectionMatrix, const glm::mat4& viewMatrix) override;
+		virtual void preFrame(Node* rootNode, const glm::mat4& projectionMatrix, const glm::mat4& viewMatrix) override;
 	};
 
 	class VboIndex
@@ -75,6 +75,7 @@ public:
 
 	void setChunkDirty(int x, int y);
 	void setChunksDirty();
+	void rebuildChunks();
 	bool gndShadowDirty = true;
 
 	GndRenderer();

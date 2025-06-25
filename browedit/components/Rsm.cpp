@@ -220,6 +220,12 @@ void Rsm::updateMatrices()
 	realbbrange = (realbbmax + realbbmin) / 2.0f;
 	maxRange = glm::max(glm::max(realbbmax.x, -realbbmin.x), glm::max(glm::max(realbbmax.y, -realbbmin.y), glm::max(realbbmax.z, -realbbmin.z)));
 
+	drawnbbmax = glm::vec3(-999999, -999999, -999999);
+	drawnbbmin = glm::vec3(999999, 999999, 999999);
+	mat = glm::scale(glm::mat4(1.0f), glm::vec3(1, -1, 1));
+	dynamic_cast<Mesh*>(rootMesh)->setBoundingBox3(mat, drawnbbmin, drawnbbmax);
+	drawnbbrange = (drawnbbmax - drawnbbmin) / 2.0f;
+
 	setAnimated(rootMesh);
 }
 
@@ -480,6 +486,7 @@ Rsm::Mesh::Mesh(Rsm* model, std::istream* rsmFile)
 				int textureId;
 				rsmFile->read(reinterpret_cast<char*>(&textureId), sizeof(int));
 
+				std::map<int, std::vector<TexFrame>> animationTypes;
 				int textureIdAnimationCount;
 				rsmFile->read(reinterpret_cast<char*>(&textureIdAnimationCount), sizeof(int));
 
@@ -489,20 +496,23 @@ Rsm::Mesh::Mesh(Rsm* model, std::istream* rsmFile)
 					rsmFile->read(reinterpret_cast<char*>(&type), sizeof(int));
 					rsmFile->read(reinterpret_cast<char*>(&amountFrames), sizeof(int));
 
+					std::vector<TexFrame> frames;
+					frames.resize(amountFrames);
+
 					for (int ii = 0; ii < amountFrames; ii++)
 					{
-						int frame;
-						rsmFile->read(reinterpret_cast<char*>(&frame), sizeof(int));
-						float offset;
-						rsmFile->read(reinterpret_cast<char*>(&offset), sizeof(float));
+						rsmFile->read(reinterpret_cast<char*>(&frames[ii].time), sizeof(int));
+						rsmFile->read(reinterpret_cast<char*>(&frames[ii].data), sizeof(float));
+						frames[ii].time = (int)ceil(frames[ii].time * model->fps); //TODO: remove this
 					}
-				}
-			}
 
+					animationTypes[type] = frames;
+				}
+
+				textureFrames[textureId] = animationTypes;
+			}
 		}
 	}
-
-
 }
 
 Rsm::Mesh::~Mesh()
@@ -704,9 +714,8 @@ void Rsm::Mesh::calcMatrix2()
 	if (model->version < 0x202) {
 		matrix2 = glm::mat4(1.0f);
 
-		if (parent == NULL && children.size() == 0) {
-			matrix2 = glm::translate(matrix2, -1.0f * model->bbrange);
-		}
+		if (parent == NULL && children.size() == 0)
+			matrix2 = glm::translate(matrix2, pos_);
 
 		if (parent != NULL || children.size() != 0)
 			matrix2 = glm::translate(matrix2, pos_);
@@ -718,6 +727,59 @@ void Rsm::Mesh::calcMatrix2()
 	}
 }
 
+bool Rsm::Mesh::getTextureAnimation(int textureId, int time, glm::vec2& texTranslate, glm::vec3& texScale, float& texRot)
+{
+	auto texEntry = textureFrames.find(textureId);
+
+	if (texEntry == textureFrames.end())
+		return false;
+
+	int tick = time % glm::max(1, model->animLen);
+	texRot = 0;
+
+	for (const auto& [type, texFrames] : texEntry->second) {
+		if (texFrames.size() == 0)
+			continue;
+
+		int prevIndex = -1;
+		int nextIndex = 0;
+
+		for (; nextIndex < texFrames.size() && tick >= texFrames[nextIndex].time; nextIndex++) {
+		}
+
+		prevIndex = nextIndex - 1;
+		float prevTick = (float)(prevIndex < 0 ? 0 : texFrames[prevIndex].time);
+		float nextTick = (float)(nextIndex == texFrames.size() ? model->animLen : texFrames[nextIndex].time);
+		float prev = prevIndex < 0 ? 0 : texFrames[prevIndex].data;
+		float next = nextIndex == texFrames.size() ? texFrames[nextIndex - 1].data : texFrames[nextIndex].data;
+
+		float mult = (tick - prevTick) / (nextTick - prevTick);
+		float offset = mult * (next - prev) + prev;
+
+		switch (type)
+		{
+		case 0:
+			texTranslate.x += offset;
+			break;
+		case 1:
+			texTranslate.y += offset;
+			break;
+		case 2:
+			texScale.x = offset;
+			break;
+		case 3:
+			texScale.y = offset;
+			break;
+		case 4:
+			texRot = offset;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return true;
+}
 
 void Rsm::Mesh::setBoundingBox(glm::vec3& _bbmin, glm::vec3& _bbmax)
 {
@@ -775,6 +837,50 @@ void Rsm::Mesh::setBoundingBox2(glm::mat4& mat, glm::vec3& bbmin_, glm::vec3& bb
 
 	for (unsigned int i = 0; i < children.size(); i++)
 		dynamic_cast<Mesh*>(children[i])->setBoundingBox2(mat1, bbmin_, bbmax_);
+}
+
+void Rsm::Mesh::setBoundingBox3(glm::mat4& mat, glm::vec3& bbmin_, glm::vec3& bbmax_)
+{
+	if (model->version >= 0x202) {
+		for (unsigned int i = 0; i < faces.size(); i++)
+		{
+			for (int ii = 0; ii < 3; ii++)
+			{
+				glm::vec4 v = matrix2 * glm::vec4(vertices[faces[i].vertexIds[ii]], 1);
+				bbmin_.x = glm::min(bbmin_.x, v.x);
+				bbmin_.y = glm::min(bbmin_.y, v.y);
+				bbmin_.z = glm::min(bbmin_.z, v.z);
+
+				bbmax_.x = glm::max(bbmax_.x, v.x);
+				bbmax_.y = glm::max(bbmax_.y, v.y);
+				bbmax_.z = glm::max(bbmax_.z, v.z);
+			}
+		}
+
+		for (unsigned int i = 0; i < children.size(); i++)
+			dynamic_cast<Mesh*>(children[i])->setBoundingBox3(mat, bbmin_, bbmax_);
+	}
+	else {
+		glm::mat4 mat1 = mat * matrix1;
+		glm::mat4 mat2 = mat * matrix1 * matrix2;
+		for (unsigned int i = 0; i < faces.size(); i++)
+		{
+			for (int ii = 0; ii < 3; ii++)
+			{
+				glm::vec4 v = mat2 * glm::vec4(vertices[faces[i].vertexIds[ii]], 1);
+				bbmin_.x = glm::min(bbmin_.x, v.x);
+				bbmin_.y = glm::min(bbmin_.y, v.y);
+				bbmin_.z = glm::min(bbmin_.z, v.z);
+
+				bbmax_.x = glm::max(bbmax_.x, v.x);
+				bbmax_.y = glm::max(bbmax_.y, v.y);
+				bbmax_.z = glm::max(bbmax_.z, v.z);
+			}
+		}
+
+		for (unsigned int i = 0; i < children.size(); i++)
+			dynamic_cast<Mesh*>(children[i])->setBoundingBox3(mat1, bbmin_, bbmax_);
+	}
 }
 
 /**

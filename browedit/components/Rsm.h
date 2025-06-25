@@ -97,6 +97,11 @@ public:
 			glm::vec3					position;
 			float						data; //???????
 		};
+		class TexFrame : public Frame
+		{
+		public:
+			float						data;
+		};
 
 		Mesh(Rsm* model, std::istream* rsmFile);
 		Mesh(Rsm* model);
@@ -140,6 +145,7 @@ public:
 		std::vector<RotFrame> rotFrames;
 		std::vector<PosFrame> posFrames;
 		std::vector<ScaleFrame> scaleFrames;
+		std::map<int, std::map<int, std::vector<TexFrame>>> textureFrames;
 
 
 		glm::vec3 bbmin;
@@ -153,6 +159,8 @@ public:
 
 		void setBoundingBox(glm::vec3& bbmin, glm::vec3& bbmax);
 		void setBoundingBox2(glm::mat4& mat, glm::vec3& realbbmin, glm::vec3& realbbmax);
+		void setBoundingBox3(glm::mat4& mat, glm::vec3& drawnbbmin, glm::vec3& drawnbbmmax);
+		bool getTextureAnimation(int textureId, int time, glm::vec2& texTranslate, glm::vec3& texScale, float& texRot);
 	};
 
 
@@ -190,8 +198,12 @@ public:
 	glm::vec3 bbmin;
 	glm::vec3 bbmax;
 	glm::vec3 bbrange;
-
 	float maxRange;
+
+	glm::vec3 drawnbbmin;
+	glm::vec3 drawnbbmax;
+	glm::vec3 drawnbbrange;
+
 	enum class ShadeType
 	{
 		SHADE_NO,

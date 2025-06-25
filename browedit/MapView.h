@@ -209,6 +209,7 @@ public:
 	bool smoothColors = false;
 	bool viewTextures = true;
 	bool viewEmptyTiles = true;
+	bool enableFaceCulling = true;
 	bool viewGat = false;
 	bool viewGatGat = true;
 	float gatOpacity = 0.5f;

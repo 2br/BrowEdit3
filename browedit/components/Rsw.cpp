@@ -1,5 +1,6 @@
-#include <Windows.h>
-#include <glad/glad.h>
+#ifdef _WIN32
+	#include <Windows.h>
+#endif
 #include "Rsw.h"
 #include "Gnd.h"
 #include "Gat.h"
@@ -226,7 +227,6 @@ void Rsw::load(const std::string& fileName, Map* map, BrowEdit* browEdit, bool l
 	if (version >= 0x0202)
 	{
 		unsigned char u = file->get();
-		std::cout << "202 unknown value: " << (int)u << std::endl;
 	}
 
 	iniFile = util::FileIO::readString(file, 40);
@@ -978,6 +978,9 @@ void Rsw::recalculateQuadtree(QuadTreeNode* node)
 				if (collider)
 				{
 					auto vertices = collider->getAllVerticesWorldSpace();
+
+					if (vertices.size() == 0)
+						return;
 
 					// Translate coords with gnd coords instead, it makes comparisons much easier later
 					for (auto& v : vertices) {

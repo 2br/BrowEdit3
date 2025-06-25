@@ -15,6 +15,9 @@
 #include "components/WaterRenderer.h"
 #include "components/BillboardRenderer.h"
 
+#include "shaders/GndShader.h"
+#include "shaders/WaterShader.h"
+
 #include <browedit/HotkeyRegistry.h>
 #include <browedit/gl/FBO.h>
 #include <browedit/gl/Shader.h>
@@ -422,30 +425,34 @@ void MapView::render(BrowEdit* browEdit)
 	}
 
 	//TODO: fix this, don't want to individually set settings
-	map->rootNode->getComponent<GndRenderer>()->viewLightmapShadow = viewLightmapShadow;
-	map->rootNode->getComponent<GndRenderer>()->viewLightmapColor = viewLightmapColor;
-	map->rootNode->getComponent<GndRenderer>()->viewColors = viewColors;
-	map->rootNode->getComponent<GndRenderer>()->viewLighting = viewLighting;
-	map->rootNode->getComponent<GndRenderer>()->viewTextures = viewTextures;
-	map->rootNode->getComponent<GndRenderer>()->viewFog = viewFog;
-	if (map->rootNode->getComponent<GndRenderer>()->viewEmptyTiles != viewEmptyTiles)
+	auto gndRenderer = map->rootNode->getComponent<GndRenderer>();
+	gndRenderer->viewLightmapShadow = viewLightmapShadow;
+	gndRenderer->viewLightmapColor = viewLightmapColor;
+	gndRenderer->viewColors = viewColors;
+	gndRenderer->viewLighting = viewLighting;
+	gndRenderer->viewTextures = viewTextures;
+	gndRenderer->viewFog = viewFog;
+
+	if (gndRenderer->viewEmptyTiles != viewEmptyTiles)
 	{
-		map->rootNode->getComponent<GndRenderer>()->viewEmptyTiles = viewEmptyTiles;
+		gndRenderer->viewEmptyTiles = viewEmptyTiles;
 		auto gnd = map->rootNode->getComponent<Gnd>();
 		for (int x = 0; x < gnd->width; x++)
 			for (int y = 0; y < gnd->height; y++)
-				map->rootNode->getComponent<GndRenderer>()->setChunkDirty(x,y);
+				gndRenderer->setChunkDirty(x,y);
 	}
-	if (map->rootNode->getComponent<GndRenderer>()->smoothColors != smoothColors)
+	if (gndRenderer->smoothColors != smoothColors)
 	{
-		map->rootNode->getComponent<GndRenderer>()->smoothColors = smoothColors;
-		map->rootNode->getComponent<GndRenderer>()->gndShadowDirty = true;
+		gndRenderer->smoothColors = smoothColors;
+		gndRenderer->gndShadowDirty = true;
 	}
-	map->rootNode->getComponent<WaterRenderer>()->viewFog = viewFog;
 
+	map->rootNode->getComponent<WaterRenderer>()->viewFog = viewFog;
+	
 	RsmRenderer::RsmRenderContext::getInstance()->viewLighting = viewLighting;
 	RsmRenderer::RsmRenderContext::getInstance()->viewTextures = viewTextures;
 	RsmRenderer::RsmRenderContext::getInstance()->viewFog = viewFog;
+	RsmRenderer::RsmRenderContext::getInstance()->enableFaceCulling = enableFaceCulling;
 
 	map->rootNode->getComponent<GatRenderer>()->cameraDistance = cameraDistance;
 	map->rootNode->getComponent<GatRenderer>()->enabled = browEdit->editMode == BrowEdit::EditMode::Gat ? viewGatGat : viewGat;
@@ -503,6 +510,7 @@ void MapView::render(BrowEdit* browEdit)
 				}
 
 				rswObject->position = glm::vec3(rayCast.x - 5 * gnd->width, -rayCast.y, -(rayCast.z + (-10 - 5 * gnd->height))) + newNode.second;
+				auto rsm = newNode.first->getComponent<Rsm>();
 
 				switch (browEdit->newNodePlacement) {
 					case BrowEdit::Relative:
@@ -511,23 +519,48 @@ void MapView::render(BrowEdit* browEdit)
 					case BrowEdit::Absolute:
 						rswObject->position.y = newNode.second.y + browEdit->newNodesCenter.y;
 						break;
+					case BrowEdit::Ground:
+						if (rsm && rsm->version >= 0x202) {
+							rswObject->position.y += rsm->bbmin.y;
+						}
+						break;
 				}
 
-				if (newNode.first->getComponent<RsmRenderer>())
+				auto rsmRenderer = newNode.first->getComponent<RsmRenderer>();
+				if (rsmRenderer)
 				{
+
 					glm::mat4 matrix = glm::mat4(1.0f);
-					matrix = glm::translate(matrix, glm::vec3(5 * gnd->width + rswObject->position.x, -rswObject->position.y, -(-10 - 5 * gnd->height + rswObject->position.z)));
+					matrix = glm::scale(matrix, glm::vec3(1, 1, -1));
+					matrix = glm::translate(matrix, glm::vec3(5 * gnd->width + rswObject->position.x, -rswObject->position.y, -10 - 5 * gnd->height + rswObject->position.z));
 					matrix = glm::rotate(matrix, -glm::radians(rswObject->rotation.z), glm::vec3(0, 0, 1));
 					matrix = glm::rotate(matrix, -glm::radians(rswObject->rotation.x), glm::vec3(1, 0, 0));
 					matrix = glm::rotate(matrix, glm::radians(rswObject->rotation.y), glm::vec3(0, 1, 0));
-					matrix = glm::scale(matrix, glm::vec3(1, -1, 1));
-					matrix = glm::scale(matrix, rswObject->scale);
-					matrix = glm::scale(matrix, glm::vec3(1, 1, -1));
-					newNode.first->getComponent<RsmRenderer>()->matrixCache = matrix;
+
+					if (rsm) {
+						matrix = glm::scale(matrix, glm::vec3(rswObject->scale.x, -rswObject->scale.y, rswObject->scale.z));
+
+						if (rsm->version < 0x202) {
+							matrix = glm::translate(matrix, glm::vec3(-rsm->realbbrange.x, rsm->realbbmin.y, -rsm->realbbrange.z));
+						}
+						else {
+							matrix = glm::scale(matrix, glm::vec3(1, -1, 1));
+						}
+					}
+					rsmRenderer->matrixCache = matrix;
+
+					if (rswObject->scale.x * rswObject->scale.y * rswObject->scale.z * (rsm->version >= 0x202 ? -1 : 1) < 0)
+						rsmRenderer->reverseCullFace = true;
 				}
 				if (newNode.first->getComponent<BillboardRenderer>())
 					newNode.first->getComponent<BillboardRenderer>()->gnd = gnd;
+
+				// If matrixCached is not set to true, the renderer assumes it's being called from Bromedit
+				if (rsmRenderer)
+					rsmRenderer->matrixCached = true;
 				NodeRenderer::render(newNode.first, nodeRenderContext);
+				if (rsmRenderer)
+					rsmRenderer->matrixCached = false;
 			}
 		}
 	}
