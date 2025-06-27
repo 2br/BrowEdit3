@@ -281,11 +281,12 @@ public:
 	glm::vec4	colorEditBrushColor = glm::vec4(1);
 	int			colorEditBrushSize = 1;
 	float		colorEditBrushHardness = 1.0f;
+	bool		colorEditTextureBlend = true;
 
 	int		shadowEditBrushAlpha = 128;
 	int		shadowEditBrushSize = 1;
 	bool	shadowSmoothEdges = true;
-
+	
 	void configBegin();
 
 	bool glfwBegin();

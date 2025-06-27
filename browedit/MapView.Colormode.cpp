@@ -130,8 +130,22 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 							}
 							auto tile = gnd->tiles[gnd->cubes[x][y]->tileUp];
 							auto oldColor = tile->color;
-							tile->color = glm::mix(tile->color, glm::ivec4(glm::vec3(browEdit->colorEditBrushColor) * 255.0f, 255), browEdit->colorEditBrushColor.a * strength);
-
+							if (browEdit->colorEditTextureBlend) {
+								tile->color = glm::mix(
+									tile->color,
+									glm::ivec4(glm::vec4(browEdit->colorEditBrushColor) * 255.0f),
+									browEdit->colorEditBrushColor.a * strength
+								);
+								// red is texture
+								tile->color.r = browEdit->colorEditBrushColor.r * 255.0f;
+							}
+							else {
+								tile->color = glm::mix(
+									tile->color,
+									glm::ivec4(glm::vec3(browEdit->colorEditBrushColor) * 255.0f, 255),
+									browEdit->colorEditBrushColor.a * strength
+								);
+							}
 							if (ga == nullptr)
 								ga = new GroupAction();
 							auto action = new TileChangeAction<glm::ivec4>(glm::ivec2(x, y), tile, &tile->color, oldColor, "Change color");
