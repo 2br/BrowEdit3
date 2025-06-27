@@ -37,11 +37,13 @@ public:
 	{
 	public:
 		int texture;
+		int blendTexture;
 		std::size_t begin;
 		std::size_t count;
-		VboIndex(int texture, std::size_t begin, std::size_t count)
+		VboIndex(int texture, int blendTexture, std::size_t begin, std::size_t count)
 		{
 			this->texture = texture;
+			this->blendTexture = blendTexture;
 			this->begin = begin;
 			this->count = count;
 		}

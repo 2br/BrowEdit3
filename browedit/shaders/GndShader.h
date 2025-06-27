@@ -13,6 +13,7 @@ public:
 			ModelViewMatrix,
 			s_texture,
 			s_lighting,
+			s_blend,
 			lightAmbient,
 			lightDiffuse,
 			//lightIntensity,
@@ -59,6 +60,7 @@ public:
 		bindUniform(Uniforms::ModelViewMatrix, "modelViewMatrix");
 		bindUniform(Uniforms::s_texture, "s_texture");
 		bindUniform(Uniforms::s_lighting, "s_lighting");
+		bindUniform(Uniforms::s_blend, "s_blend");
 		bindUniform(Uniforms::lightAmbient, "lightAmbient");
 		bindUniform(Uniforms::lightDiffuse, "lightDiffuse");
 		//bindUniform(Uniforms::lightIntensity, "lightIntensity");

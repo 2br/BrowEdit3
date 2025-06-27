@@ -3,7 +3,10 @@
 #include <browedit/MapView.h>
 #include <browedit/Map.h>
 #include <browedit/Node.h>
+#include <browedit/components/Gnd.h>
+#include <browedit/components/GndRenderer.h>
 #include <browedit/components/Rsw.h>
+#include <browedit/gl/Texture.h>
 #include <imgui.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <GLFW/glfw3.h>
@@ -14,7 +17,29 @@ void BrowEdit::showColorEditWindow()
 {
 	if (!activeMapView)
 		return;
+
+	auto gnd = activeMapView->map->rootNode->getComponent<Gnd>();
+	auto gndRenderer = activeMapView->map->rootNode->getComponent<GndRenderer>();
+
 	ImGui::Begin("Color Edit Window");
+
+	if (ImGui::BeginCombo("Texture", util::iso_8859_1_to_utf8(gnd->textures[activeMapView->textureSelected]->file).c_str(), ImGuiComboFlags_HeightLargest))
+	{
+		for (auto i = 0; i < gnd->textures.size(); i++)
+		{
+			float indexF = i / 255.0f;
+			if (ImGui::Selectable(util::iso_8859_1_to_utf8("##" + gnd->textures[i]->file).c_str(), colorEditBrushColor.r == indexF, 0, ImVec2(0, 64)))
+			{
+				colorEditBrushColor.r = indexF;
+			}
+			ImGui::SameLine(0);
+			ImGui::Image((ImTextureID)(long long)gndRenderer->textures[i]->id(), ImVec2(64, 64));
+			ImGui::SameLine(80);
+			ImGui::Text(util::iso_8859_1_to_utf8(gnd->textures[i]->file).c_str());
+
+		}
+		ImGui::EndCombo();
+	}
 
 	ImGui::ColorPicker4("Color", glm::value_ptr(colorEditBrushColor), ImGuiColorEditFlags_AlphaBar, glm::value_ptr(refColor));
 	ImGui::SliderFloat("Brush Hardness", &colorEditBrushHardness, 0, 1);
