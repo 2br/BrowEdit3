@@ -20,28 +20,44 @@ void BrowEdit::showColorEditWindow()
 
 	auto gnd = activeMapView->map->rootNode->getComponent<Gnd>();
 	auto gndRenderer = activeMapView->map->rootNode->getComponent<GndRenderer>();
-
+	
 	ImGui::Begin("Color Edit Window");
-
-	if (ImGui::BeginCombo("Texture", util::iso_8859_1_to_utf8(gnd->textures[activeMapView->textureSelected]->file).c_str(), ImGuiComboFlags_HeightLargest))
-	{
-		for (auto i = 0; i < gnd->textures.size(); i++)
-		{
-			float indexF = i / 255.0f;
-			if (ImGui::Selectable(util::iso_8859_1_to_utf8("##" + gnd->textures[i]->file).c_str(), colorEditBrushColor.r == indexF, 0, ImVec2(0, 64)))
-			{
-				colorEditBrushColor.r = indexF;
-			}
-			ImGui::SameLine(0);
-			ImGui::Image((ImTextureID)(long long)gndRenderer->textures[i]->id(), ImVec2(64, 64));
-			ImGui::SameLine(80);
-			ImGui::Text(util::iso_8859_1_to_utf8(gnd->textures[i]->file).c_str());
-
-		}
-		ImGui::EndCombo();
+	
+	int currentSelected = 0;
+	bool isBlendingEnabled = this->colorEditTextureBlend;
+	bool mapHasTextures = false;
+	// Needs textures
+	if (!gnd->textures.empty()) {
+		currentSelected = glm::clamp(int(colorEditBrushColor.r * 255.0f), 0, int(gnd->textures.size() - 1));
+		mapHasTextures = true;
+	}
+	
+	// Is empty
+	if (!isBlendingEnabled) {
+		ImGui::ColorPicker4("Color", glm::value_ptr(colorEditBrushColor), ImGuiColorEditFlags_AlphaBar, glm::value_ptr(refColor));
 	}
 
-	ImGui::ColorPicker4("Color", glm::value_ptr(colorEditBrushColor), ImGuiColorEditFlags_AlphaBar, glm::value_ptr(refColor));
+	if (isBlendingEnabled && mapHasTextures) {
+ 
+		if (ImGui::BeginCombo("Texture", util::iso_8859_1_to_utf8(gnd->textures[currentSelected]->file).c_str(), ImGuiComboFlags_HeightLargest))
+		{
+			for (auto i = 0; i < gnd->textures.size(); i++)
+			{
+				if (ImGui::Selectable(util::iso_8859_1_to_utf8("##" + gnd->textures[i]->file).c_str(), currentSelected == i, 0, ImVec2(0, 64)))
+				{
+					colorEditBrushColor.r = i / 255.0f;
+				}
+				ImGui::SameLine(0);
+				ImGui::Image((ImTextureID)(long long)gndRenderer->textures[i]->id(), ImVec2(64, 64));
+				ImGui::SameLine(80);
+				ImGui::Text(util::iso_8859_1_to_utf8(gnd->textures[i]->file).c_str());
+
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::SliderFloat("Opacity", &colorEditBrushColor.g, 0, 1);
+	}
+
 	ImGui::SliderFloat("Brush Hardness", &colorEditBrushHardness, 0, 1);
 	ImGui::InputInt("Brush Size", &colorEditBrushSize);
 

@@ -278,7 +278,7 @@ public:
 	bool useGridForNudge = true;
 	bool statusText = false;
 
-	glm::vec4	colorEditBrushColor = glm::vec4(1);
+	glm::vec4	colorEditBrushColor = glm::vec4(1, 0, 1, 1);
 	int			colorEditBrushSize = 1;
 	float		colorEditBrushHardness = 1.0f;
 	bool		colorEditTextureBlend = true;

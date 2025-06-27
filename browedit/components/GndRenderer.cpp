@@ -233,12 +233,8 @@ void GndRenderer::Chunk::render()
 		{
 			
 			if (it.texture != -1) {
-				int blendTexture = it.blendTexture;
-
-				if (it.blendTexture >= (int)renderer->textures.size()) {
-					blendTexture = 1;
-				}
-			
+				int blendTexture = glm::clamp(it.blendTexture, 0, int(renderer->textures.size() - 1));
+				
 				glActiveTexture(GL_TEXTURE2);
 				renderer->textures[blendTexture]->bind();
 
@@ -301,7 +297,8 @@ void GndRenderer::Chunk::rebuild()
 				Gnd::Tile* tile = gnd->tiles[cube->tileUp];
 				glm::vec2 lm1(0, 0), lm2(0, 0);
 
-				blendTexture = int(tile->color.r * 255.0f);
+				blendTexture = tile->color.r;
+				
 				if(tile->lightmapIndex >= 0)
 				{
 					lm1 = glm::vec2((tile->lightmapIndex % shadowmapRowCount) * (lmsx / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize,
@@ -339,6 +336,7 @@ void GndRenderer::Chunk::rebuild()
 			}
 			else if (renderer->viewEmptyTiles)
 			{
+				blendTexture = 0;
 				VertexP3T2T2C4N3 v1(glm::vec3(10 * x, -cube->h3, 10 * gnd->height - 10 * y), glm::vec2(0), glm::vec2(0), glm::vec4(1.0f), cube->normals[2]);
 				VertexP3T2T2C4N3 v2(glm::vec3(10 * x + 10, -cube->h4, 10 * gnd->height - 10 * y), glm::vec2(0), glm::vec2(0), glm::vec4(1.0f), cube->normals[3]);
 				VertexP3T2T2C4N3 v3(glm::vec3(10 * x, -cube->h1, 10 * gnd->height - 10 * y + 10), glm::vec2(0), glm::vec2(0), glm::vec4(1.0f), cube->normals[0]);
@@ -351,6 +349,7 @@ void GndRenderer::Chunk::rebuild()
 			{
 				Gnd::Tile* tile = gnd->tiles[cube->tileSide];
 				assert(tile->lightmapIndex >= 0);
+				blendTexture = tile->color.r;
 
 				glm::vec2 lm1((tile->lightmapIndex % shadowmapRowCount) * (lmsx / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize, (tile->lightmapIndex / shadowmapRowCount) * (lmsy / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize);
 				glm::vec2 lm2(lm1 + glm::vec2(lmsxu / renderer->shadowmapSize, lmsyu / renderer->shadowmapSize));
@@ -380,7 +379,8 @@ void GndRenderer::Chunk::rebuild()
 			{
 				Gnd::Tile* tile = gnd->tiles[cube->tileFront];
 				assert(tile->lightmapIndex >= 0);
-
+				blendTexture = tile->color.r;
+				
 				glm::vec2 lm1((tile->lightmapIndex % shadowmapRowCount) * (lmsx / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize, (tile->lightmapIndex / shadowmapRowCount) * (lmsy / renderer->shadowmapSize) + 1.0f / renderer->shadowmapSize);
 				glm::vec2 lm2(lm1 + glm::vec2(lmsxu / renderer->shadowmapSize, lmsyu / renderer->shadowmapSize));
 

@@ -58,7 +58,7 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 		{
 			if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
 			{
-				browEdit->colorEditBrushColor = glm::vec4(gnd->tiles[gnd->cubes[tileHovered.x][tileHovered.y]->tileUp]->color) / 256.0f;
+				browEdit->colorEditBrushColor = glm::vec4(gnd->tiles[gnd->cubes[tileHovered.x][tileHovered.y]->tileUp]->color) / 255.0f;
 				dropperEnabled = false;
 				browEdit->cursor = nullptr;
 			}
@@ -130,14 +130,16 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 							}
 							auto tile = gnd->tiles[gnd->cubes[x][y]->tileUp];
 							auto oldColor = tile->color;
+							// Texture blending
 							if (browEdit->colorEditTextureBlend) {
-								tile->color = glm::mix(
-									tile->color,
-									glm::ivec4(glm::vec4(browEdit->colorEditBrushColor) * 255.0f),
-									browEdit->colorEditBrushColor.a * strength
-								);
 								// red is texture
 								tile->color.r = browEdit->colorEditBrushColor.r * 255.0f;
+								// green is the factor
+								tile->color.g = glm::mix(
+									tile->color.g,
+									int(browEdit->colorEditBrushColor.g * 255), 
+									browEdit->colorEditBrushColor.a * strength
+								);
 							}
 							else {
 								tile->color = glm::mix(

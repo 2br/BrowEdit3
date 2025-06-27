@@ -4,7 +4,7 @@
 class GndShader : public gl::Shader
 {
 public:
-	GndShader() : gl::Shader("data/shaders/gnd", Uniforms::End) { bindUniforms(); }
+	GndShader() : gl::Shader("data/shaders/ground", Uniforms::End) { bindUniforms(); }
 	struct Uniforms
 	{
 		enum
