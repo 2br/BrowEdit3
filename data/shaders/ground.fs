@@ -69,7 +69,8 @@ void main()
 	// Tile color
 	if (colorToggle < 1.0) {
 		vec4 blendColor = texture2D(s_blend, texCoord);
-		texture.rgb = mix(texture.rgb, blendColor.rgb, 1.0 - color.g);
+		float blendFactor = 1.0 - color.g;
+		texture.rgb = mix(texture.rgb, blendColor.rgb, blendFactor);
 	}
 	//texture.rgb *= max(color, colorToggle).rgb;
 

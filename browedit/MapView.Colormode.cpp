@@ -111,9 +111,10 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
 			{
-				for (int x = tileHovered.x - browEdit->colorEditBrushSize; x <= tileHovered.x + browEdit->colorEditBrushSize; x++)
+				int brushSize = browEdit->colorEditBrushSize;
+				for (int x = tileHovered.x - brushSize; x <= tileHovered.x + brushSize; x++)
 				{
-					for (int y = tileHovered.y - browEdit->colorEditBrushSize; y <= tileHovered.y + browEdit->colorEditBrushSize; y++)
+					for (int y = tileHovered.y - brushSize; y <= tileHovered.y + brushSize; y++)
 					{
 						if (gnd->inMap(glm::ivec2(x, y)) && gnd->cubes[x][y]->tileUp != -1)
 						{
@@ -122,12 +123,13 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 							}
 
 							float strength = 1;
-							if (browEdit->colorEditBrushSize > 0)
-							{
+							if (brushSize > 0) {
 								float dist = glm::length(glm::vec2(x - tileHovered.x, y - tileHovered.y)) / browEdit->colorEditBrushSize;
 								strength = glm::clamp((1 - dist), 0.0f, 1.0f);
 								strength = glm::clamp(strength + browEdit->colorEditBrushHardness, 0.0f, 1.0f);
 							}
+					
+														
 							auto tile = gnd->tiles[gnd->cubes[x][y]->tileUp];
 							auto oldColor = tile->color;
 							// Texture blending
@@ -148,6 +150,7 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 									browEdit->colorEditBrushColor.a * strength
 								);
 							}
+
 							if (ga == nullptr)
 								ga = new GroupAction();
 							auto action = new TileChangeAction<glm::ivec4>(glm::ivec2(x, y), tile, &tile->color, oldColor, "Change color");

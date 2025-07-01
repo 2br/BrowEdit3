@@ -55,7 +55,7 @@ void BrowEdit::showColorEditWindow()
 			}
 			ImGui::EndCombo();
 		}
-		ImGui::SliderFloat("Opacity", &colorEditBrushColor.g, 0, 1);
+		ImGui::SliderFloat("Transparency", &colorEditBrushColor.g, 0, 1);
 	}
 
 	ImGui::SliderFloat("Brush Hardness", &colorEditBrushHardness, 0, 1);
