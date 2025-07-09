@@ -57,10 +57,11 @@ void BrowEdit::showColorEditWindow()
 		}
 		ImGui::SliderFloat("Transparency", &colorEditBrushColor.g, 0, 1);
 	} 
-	ImGui::Checkbox("Change Neighboor Tiles", &colorEditChangeAround);
 	ImGui::SliderFloat("Brush Hardness", &colorEditBrushHardness, 0, 1);
 	ImGui::InputInt("Brush Size", &colorEditBrushSize);
-
+	
+	ImGui::Checkbox("Change Neighboor Tiles", &colorEditChangeAround);
+	
 	if (toolBarButton("Color Picker", ICON_DROPPER, "Picks a color from the colormap", ImVec4(1, 1, 1, 1)))
 	{
 		dropperEnabled = !dropperEnabled;
