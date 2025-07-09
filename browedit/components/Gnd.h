@@ -42,7 +42,7 @@ public:
 	void addRandomHeight(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2> &tiles, float min, float max);
 	void connectHigh(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>& tiles);
 	void connectLow(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>& tiles);
-
+	void blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>& tiles, int textureId);
 	void perlinNoise(const std::vector<glm::ivec2>& tiles);
 
 	glm::vec3 getPos(int cubeX, int cubeY, int index);

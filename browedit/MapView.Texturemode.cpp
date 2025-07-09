@@ -396,6 +396,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 				else
 				{//do texture stamping
 					auto ga = new GroupAction();
+					
 					std::map<int, int> textureStampLookup;
 					glm::ivec2 tileHovered((int)glm::floor(mouse3D.x / 10), (gnd->height - (int)glm::floor(mouse3D.z) / 10));
 					glm::ivec2 topleft = tileHovered - glm::ivec2(browEdit->textureStamp.size() / 2, browEdit->textureStamp[0].size() / 2);
@@ -442,7 +443,7 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 							ga->addAction(new TileNewAction(t));
 							ga->addAction(new CubeTileChangeAction(glm::ivec2(x, y), cube, id, cube->tileFront, cube->tileSide));
 							cube->tileUp = id;
-							id++;
+							id++;				
 						}
 					}
 					textureGridDirty = true;
@@ -573,6 +574,8 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 						}
 						map->doAction(ga, browEdit);
 
+						gnd->blendTileBorders(map, browEdit, map->tileSelection, textureSelected);
+						//gnd->blendTilesTexture(map, browEdit, map->getSelectionAroundTiles(), textureSelected, 255);
 						map->tileSelection.clear();
 					}
 					else if (browEdit->selectTool == BrowEdit::SelectTool::WandTex)

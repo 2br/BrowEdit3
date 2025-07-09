@@ -11,6 +11,7 @@
 #include <browedit/actions/CubeTileChangeAction.h>
 #include <browedit/actions/WaterSplitChangeAction.h>
 #include <browedit/actions/GndVersionChangeAction.h>
+#include <browedit/actions/TilePropertyChangeAction.h>
 #include <browedit/actions/GroupAction.h>
 #include <iostream>
 #include <fstream>
@@ -1360,7 +1361,44 @@ void Gnd::connectLow(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>
 	map->doAction(action, browEdit);
 }
 
+void Gnd::blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>& tileList, int textureId) {
+	static GroupAction* ga = nullptr;
+	auto gndRenderer = node->getComponent<GndRenderer>();
 
+	for (auto t : tileList) {
+		//connectinfo [4]
+		for (int i = 0; i < 4; i++) {
+			//connect info [i][4]
+			for (int ii = 0; ii < 4; ii++) {
+				int x = t.x + connectInfo[i][ii].x;
+				int y = t.y + connectInfo[i][ii].y;
+				if (!inMap(glm::ivec2(x, y)) || cubes[x][y]->tileUp == -1) {
+					continue;
+				}
+			
+				int factor = 255;
+				if (x > t.x || y > t.y) {
+					factor = 0;
+				} 
+				auto tile = tiles[cubes[x][y]->tileUp];
+				auto oldColor = tile->color;
+
+				tile->color.r = textureId;
+				tile->color.g = factor;
+				// Action
+				if (ga == nullptr)
+					ga = new GroupAction();
+				auto action = new TileChangeAction<glm::ivec4>(glm::ivec2(x, y), tile, &tile->color, oldColor, "Change color");
+				action->perform(map, browEdit);
+				ga->addAction(action);
+			}
+		}
+	}
+	if (ga != nullptr) {
+		map->doAction(ga, browEdit);
+		ga = nullptr;
+	}
+}
 void Gnd::perlinNoise(const std::vector<glm::ivec2>& tiles)
 {
 	auto action = new CubeHeightChangeAction<Gnd, Gnd::Cube>(this, tiles);
