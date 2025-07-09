@@ -282,6 +282,7 @@ public:
 	int			colorEditBrushSize = 1;
 	float		colorEditBrushHardness = 1.0f;
 	bool		colorEditTextureBlend = true;
+	bool		colorEditChangeAround = true;
 
 	int		shadowEditBrushAlpha = 128;
 	int		shadowEditBrushSize = 1;

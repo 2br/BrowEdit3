@@ -699,10 +699,6 @@ void MapView::postRenderHeightMode(BrowEdit* browEdit)
 							cube->heights[1] = originalValues[cube][1] - getPointHeightDiff(a.x + 1, a.y - 1, 2, a.x + 1, a.y, 0, a.x, a.y - 1, 3);
 							cube->heights[2] = originalValues[cube][2] - getPointHeightDiff(a.x - 1, a.y + 1, 1, a.x - 1, a.y, 3, a.x, a.y + 1, 0);
 							cube->heights[3] = originalValues[cube][3] - getPointHeightDiff(a.x + 1, a.y + 1, 0, a.x + 1, a.y, 2, a.x, a.y + 1, 1);
-
-							// Updating tile color (blending)
-							if (browEdit->colorEditTextureBlend && cube->tileIds[0] != -1)
-								gnd->tiles[ cube->tileIds[0] ]->color = glm::ivec4(glm::vec3(browEdit->colorEditBrushColor) * 255.0f, 255);
 						}
 						else if (browEdit->windowData.heightEdit.edgeMode == 2) //snap ground
 						{

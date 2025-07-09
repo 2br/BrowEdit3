@@ -106,7 +106,7 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 				glDrawArrays(GL_LINES, 0, (int)verts.size());
 			}
 
-			static std::vector<int> tilesProcessed;
+			static std::vector<glm::ivec2> tilesProcessed;
 			static GroupAction* ga = nullptr;
 
 			if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -118,7 +118,7 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 					{
 						if (gnd->inMap(glm::ivec2(x, y)) && gnd->cubes[x][y]->tileUp != -1)
 						{
-							if (std::find(tilesProcessed.begin(), tilesProcessed.end(), x + y * gnd->width) != tilesProcessed.end()) {
+							if (std::find(tilesProcessed.begin(), tilesProcessed.end(), glm::ivec2(x, y)) != tilesProcessed.end()) {
 								continue;
 							}
 
@@ -128,7 +128,7 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 								strength = glm::clamp((1 - dist), 0.0f, 1.0f);
 								strength = glm::clamp(strength + browEdit->colorEditBrushHardness, 0.0f, 1.0f);
 							}
-					
+						
 														
 							auto tile = gnd->tiles[gnd->cubes[x][y]->tileUp];
 							auto oldColor = tile->color;
@@ -156,7 +156,7 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 							auto action = new TileChangeAction<glm::ivec4>(glm::ivec2(x, y), tile, &tile->color, oldColor, "Change color");
 							action->perform(map, browEdit);
 							ga->addAction(action);
-							tilesProcessed.push_back(x + y * gnd->width);
+							tilesProcessed.push_back(glm::ivec2(x, y));
 						}
 					}
 				}
@@ -166,6 +166,9 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 			{
 				map->doAction(ga, browEdit);
 				ga = nullptr;
+				if (browEdit->colorEditChangeAround) {
+					gnd->blendTileBorders(map, browEdit, tilesProcessed, browEdit->colorEditBrushColor.r * 255.0f);
+				}
 				tilesProcessed.clear();
 			}
 		}

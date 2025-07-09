@@ -56,8 +56,8 @@ void BrowEdit::showColorEditWindow()
 			ImGui::EndCombo();
 		}
 		ImGui::SliderFloat("Transparency", &colorEditBrushColor.g, 0, 1);
-	}
-
+	} 
+	ImGui::Checkbox("Change Neighboor Tiles", &colorEditChangeAround);
 	ImGui::SliderFloat("Brush Hardness", &colorEditBrushHardness, 0, 1);
 	ImGui::InputInt("Brush Size", &colorEditBrushSize);
 

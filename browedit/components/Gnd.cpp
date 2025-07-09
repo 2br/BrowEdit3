@@ -1365,40 +1365,48 @@ void Gnd::blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::
 	static GroupAction* ga = nullptr;
 	auto gndRenderer = node->getComponent<GndRenderer>();
 
-	for (auto t : tileList) {
-		//connectinfo [4]
-		for (int i = 0; i < 4; i++) {
-			//connect info [i][4]
-			for (int ii = 0; ii < 4; ii++) {
-				int x = t.x + connectInfo[i][ii].x;
-				int y = t.y + connectInfo[i][ii].y;
-				if (!inMap(glm::ivec2(x, y)) || cubes[x][y]->tileUp == -1) {
-					continue;
-				}
-			
-				int factor = 255;
-				if (x > t.x || y > t.y) {
-					factor = 0;
-				} 
-				auto tile = tiles[cubes[x][y]->tileUp];
-				auto oldColor = tile->color;
+	std::vector<glm::ivec2> tilesAround;
+	auto isTileInList = [&](int x, int y) { return std::find(tileList.begin(), tileList.end(), glm::ivec2(x, y)) != tileList.end(); };
 
-				tile->color.r = textureId;
-				tile->color.g = factor;
-				// Action
-				if (ga == nullptr)
-					ga = new GroupAction();
-				auto action = new TileChangeAction<glm::ivec4>(glm::ivec2(x, y), tile, &tile->color, oldColor, "Change color");
-				action->perform(map, browEdit);
-				ga->addAction(action);
+	// Get around tiles
+	for (auto& t : tileList) {
+		for (int xx = -1; xx <= 1; xx++) {
+			for (int yy = -1; yy <= 1; yy++) {
+				if (inMap(t + glm::ivec2(xx, yy)) &&
+					std::find(tilesAround.begin(), tilesAround.end(), glm::ivec2(t.x + xx, t.y + yy)) == tilesAround.end() &&
+					!isTileInList(t.x + xx, t.y + yy)) {
+					tilesAround.push_back(t + glm::ivec2(xx, yy));
+				}
 			}
 		}
 	}
+
+	int factor = 255;
+	for (auto t : tilesAround) {
+		int x = t.x;
+		int y = t.y;
+		if (cubes[x][y]->tileUp == -1) {
+			continue;
+		}
+		auto tile = tiles[cubes[x][y]->tileUp];
+		auto oldColor = tile->color;
+
+		tile->color.r = textureId;
+		//tile->color.g = factor;
+		// Action
+		if (ga == nullptr)
+			ga = new GroupAction();
+		auto action = new TileChangeAction<glm::ivec4>(glm::ivec2(x, y), tile, &tile->color, oldColor, "Change color");
+		action->perform(map, browEdit);
+		ga->addAction(action);
+	}
+
 	if (ga != nullptr) {
 		map->doAction(ga, browEdit);
 		ga = nullptr;
 	}
 }
+
 void Gnd::perlinNoise(const std::vector<glm::ivec2>& tiles)
 {
 	auto action = new CubeHeightChangeAction<Gnd, Gnd::Cube>(this, tiles);
