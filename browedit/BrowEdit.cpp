@@ -1,5 +1,6 @@
 #include "BrowEdit.h"
 #include "Version.h"
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <BugTrap.h>
 
@@ -456,7 +457,15 @@ void BrowEdit::configBegin()
 		try {
 			configFile >> configJson;
 			configFile.close();
+			config.defaultHotkeys();
 			config = configJson.get<Config>();
+
+			// Add missing default hotkeys
+			for (auto hotkey : HotkeyRegistry::defaultHotkeys) {
+				if (hotkey.second.keyCode != 0 && config.hotkeys.find(hotkey.first) == config.hotkeys.end()) {
+					config.hotkeys[hotkey.first] = hotkey.second;
+				}
+			}
 		}
 		catch (...) {
 			std::cerr << "Config file invalid, resetting config" << std::endl;
