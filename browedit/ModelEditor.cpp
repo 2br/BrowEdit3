@@ -144,7 +144,8 @@ void ModelEditor::run(BrowEdit* browEdit)
 	{
 		auto rsm = m.node->getComponent<Rsm>();
 		auto rsmRenderer = m.node->getComponent<RsmRenderer>();
-		if (ImGui::Begin(util::iso_8859_1_to_utf8(rsm->fileName).c_str()))
+		ImGui::SetNextWindowSizeConstraints(ImVec2(400, 400), ImVec2(2048, 2048));
+ 		if (ImGui::Begin((util::iso_8859_1_to_utf8(rsm->fileName)).c_str()))
 		{
 			if (ImGui::IsWindowFocused()) {
 				activeModelViewPtr = &m;
