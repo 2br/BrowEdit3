@@ -1507,25 +1507,36 @@ void Gnd::blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::
 		}
 	}
 
-	int factor = 255;
-	for (auto t : tilesAround) {
+	int minX = INT_MAX;
+	int minY = INT_MAX;
+	for (const auto& t : tilesAround) {
+		minX = std::min(minX, t.x);
+		minY = std::min(minY, t.y);
+	}
+
+	for (const auto& t : tilesAround) {
 		int x = t.x;
 		int y = t.y;
-		if (cubes[x][y]->tileUp == -1) {
+
+		if (cubes[x][y]->tileUp == -1)
 			continue;
-		}
+
 		auto tile = tiles[cubes[x][y]->tileUp];
 		auto oldColor = tile->color;
 
+		int factor = (x == minX || y == minY) ? 255 : 0;
+
 		tile->color.r = textureId;
-		//tile->color.g = factor;
-		// Action
+		tile->color.g = factor;
+
 		if (ga == nullptr)
 			ga = new GroupAction();
+
 		auto action = new TileChangeAction<glm::ivec4>(glm::ivec2(x, y), tile, &tile->color, oldColor, "Change color");
 		action->perform(map, browEdit);
 		ga->addAction(action);
 	}
+
 
 	if (ga != nullptr) {
 		map->doAction(ga, browEdit);

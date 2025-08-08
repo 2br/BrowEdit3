@@ -557,7 +557,9 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 							t->color = glm::ivec4(255, 255, 255, 255);
 							t->lightmapIndex = 0;
 							t->textureIndex = textureSelected;
-
+							if (!textureBrushKeepColor) {
+								t->color = glm::ivec4(textureSelected, 0, 255, 255);
+							}
 							if (cube->tileUp != -1)
 							{
 								if (textureBrushKeepColor)
@@ -573,8 +575,11 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 							id++;
 						}
 						map->doAction(ga, browEdit);
-
-						gnd->blendTileBorders(map, browEdit, map->tileSelection, textureSelected);
+						
+						// not if is meant to keep it
+						if (!textureBrushKeepColor) {
+							gnd->blendTileBorders(map, browEdit, map->tileSelection, textureSelected);
+						}
 						//gnd->blendTilesTexture(map, browEdit, map->getSelectionAroundTiles(), textureSelected, 255);
 						map->tileSelection.clear();
 					}
