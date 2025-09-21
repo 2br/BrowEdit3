@@ -707,17 +707,23 @@ void ModelEditor::run(BrowEdit* browEdit)
 						mesh->textures.clear();
 						
 						
-						std::set<int> texturesUsed;
+						std::map<int, std::string> textureToMaterialName;
 						std::map<int, int> textureMap;
 						for (auto& primitive : model.meshes[0].primitives) {
-							std::cout << "This file has too many models" << std::endl;
-							texturesUsed.insert(model.materials[primitive.material].values["baseColorTexture"].TextureIndex());
+							int texIndex = model.materials[primitive.material]
+								.values["baseColorTexture"]
+								.TextureIndex();
+
+							if (texIndex >= 0) { // valid texture
+								textureToMaterialName[texIndex] = model.materials[primitive.material].name;
+							}
 						}
-						for (auto& tex : texturesUsed)
-						{
-							textureMap[tex] = (int)mesh->textures.size();
+						
+						// build texture map
+						for (auto& [texIndex, matName] : textureToMaterialName) {
+							textureMap[texIndex] = (int)mesh->textures.size();
 							mesh->textures.push_back((int)rsm->textures.size());
-							rsm->textures.push_back("black.png");
+							rsm->textures.push_back(matName); // use material name
 						}
 
 
