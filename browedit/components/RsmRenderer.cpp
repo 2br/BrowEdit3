@@ -198,7 +198,7 @@ void RsmRenderer::initMeshInfo(Rsm::Mesh* mesh, const glm::mat4 &matrix)
 
 	for (std::map<int, std::vector<VertexP3T2N3C1> >::iterator it2 = verts.begin(); it2 != verts.end(); it2++)
 	{
-		if (textures[mesh->textures[it2->first]]->semiTransparent) {
+		if (textures.size() > 0 && textures[mesh->textures[it2->first]]->semiTransparent) {
 			// animated semiTransparent texture
 			if (mesh->textureFrames.find(it2->first) != mesh->textureFrames.end()) {
 				phaseId = 2;
@@ -210,7 +210,6 @@ void RsmRenderer::initMeshInfo(Rsm::Mesh* mesh, const glm::mat4 &matrix)
 		else {
 			phaseId = 0;
 		}
-		
 		renderInfo[mesh->index].indices[phaseId].push_back(VboIndex(it2->first, (int)allVerts[phaseId].size(), (int)it2->second.size()));
 		allVerts[phaseId].insert(allVerts[phaseId].end(), it2->second.begin(), it2->second.end());
 	}
