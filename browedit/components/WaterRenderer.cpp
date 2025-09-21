@@ -160,9 +160,9 @@ void WaterRenderer::reloadTextures()
 	// Only reload necessary textures, it prevents lag issues
 	for (int y = 0; y < rsw->water.splitHeight; y++) {
 		for (int x = 0; x < rsw->water.splitWidth; x++) {
-			for (int i = 0; i < 1; i++) {
+			for (int i = 0; i < 32; i++) {
 				char buf[128];
-				sprintf_s(buf, 128, "data/texture/water/water%i%02i%s", rsw->water.zones[x][y].type, i, ".png");
+				sprintf_s(buf, 128, "data/texture/water/water%i%02i%s", rsw->water.zones[x][y].type, 0, ".png");
 
 				int index = 32 * (y * rsw->water.splitWidth + x) + i;
 				if (index >= textures.size()) {
