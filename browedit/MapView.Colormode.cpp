@@ -167,7 +167,7 @@ void MapView::postRenderColorMode(BrowEdit* browEdit)
 				map->doAction(ga, browEdit);
 				ga = nullptr;
 				if (browEdit->colorEditChangeAround) {
-					gnd->blendTileBorders(map, browEdit, tilesProcessed, browEdit->colorEditBrushColor.r * 255.0f);
+					gnd->blendTileBorders(map, browEdit, tilesProcessed, browEdit->colorEditBrushColor.r * 255.0f, false);
 				}
 				tilesProcessed.clear();
 			}

@@ -1485,7 +1485,7 @@ void Gnd::connectLow(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>
 	map->doAction(action, browEdit);
 }
 
-void Gnd::blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>& tileList, int textureId) {
+void Gnd::blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::ivec2>& tileList, int textureId, bool isTextureMode) {
 	static GroupAction* ga = nullptr;
 	auto gndRenderer = node->getComponent<GndRenderer>();
 
@@ -1505,18 +1505,6 @@ void Gnd::blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::
 		}
 	}
 
-	int minX = INT_MAX;
-	int minY = INT_MAX;
-	int maxX = 0;
-	int maxY = 0;
-	for (const auto& t : tilesAround) {
-		minX = std::min(minX, t.x);
-		minY = std::min(minY, t.y);
-
-		maxX = std::max(maxX, t.x);
-		maxY = std::max(maxY, t.y);
-	}
-
 	for (const auto& t : tilesAround) {
 		int x = t.x;
 		int y = t.y;
@@ -1526,12 +1514,18 @@ void Gnd::blendTileBorders(Map* map, BrowEdit* browEdit, const std::vector<glm::
 
 		auto tile = tiles[cubes[x][y]->tileUp];
 		auto oldColor = tile->color;
+		tile->color.g = 255;
 
-		bool isLowerCorner = (x == minX && y < maxY) || (y == minY && x < maxX);
-		if (isLowerCorner) {
+		// Check if right, up, and diagonal is present in the list
+		bool isUpperNeighboorInList = isTileInList(x + 1, y) || isTileInList(x, y + 1) || isTileInList(x + 1, y + 1);
+		if (isUpperNeighboorInList) {
 			tile->color.r = textureId;
 		}
-		tile->color.g = 255;
+		else if (isTextureMode) {
+			tile->color.r = textureId;
+			tile->color.g = 0;
+		}
+			
 		
 		if (ga == nullptr)
 			ga = new GroupAction();

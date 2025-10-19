@@ -581,9 +581,8 @@ void MapView::postRenderTextureMode(BrowEdit* browEdit)
 						
 						// not if is meant to keep it
 						if (!textureBrushKeepColor) {
-							gnd->blendTileBorders(map, browEdit, map->tileSelection, textureSelected);
+							gnd->blendTileBorders(map, browEdit, map->tileSelection, textureSelected, true);
 						}
-						//gnd->blendTilesTexture(map, browEdit, map->getSelectionAroundTiles(), textureSelected, 255);
 						map->tileSelection.clear();
 					}
 					else if (browEdit->selectTool == BrowEdit::SelectTool::WandTex)
