@@ -305,7 +305,7 @@ std::pair<glm::vec3, int> Lightmapper::calculateLight(const glm::vec3& groundPos
 			lightDirection2 = rswLight->direction; //TODO: should this be -direction?
 		else if (rswLight->lightType == RswLight::Type::Sun && rswLight->sunMatchRswDirection)
 			lightDirection2 = lightDirection;
-		auto dotproduct = glm::dot(normal, lightDirection2);
+		auto dotproduct = rswLight->noTerrainShading ? 1.0f : glm::dot(normal, lightDirection2);
 
 		if (dotproduct <= 0) {
 			if (rswLight->lightType == RswLight::Type::Sun) {
@@ -432,7 +432,7 @@ std::pair<glm::vec3, int> Lightmapper::calculateLight(const glm::vec3& groundPos
 				}
 			}
 			// Check if the ray collides with the ground
-			if (!collides && shadowStrength < 1 && rswLight->shadowTerrain && rswLight->givesShadow && collidesMap(math::Ray(groundPos, lightDirection2), cx, cy, distance))
+			if (!collides && shadowStrength < 1 && rswLight->shadowTerrain && collidesMap(math::Ray(groundPos, lightDirection2), cx, cy, distance))
 			{
 				collides = true;
 				shadowStrength = 1;
