@@ -21,12 +21,20 @@ public:
 	std::vector<Node*> selectedNodes;
 	std::vector<glm::ivec2> tileSelection;
 	std::vector<glm::ivec2> gatSelection;
+	std::vector<glm::ivec2> waterSelection;
+	std::vector<glm::ivec3> wallSelection;
+
+	struct {
+		glm::ivec2 selectionStart;
+		int selectionSide;
+		bool selecting = false;
+		bool panning = false;
+	} wallSelect;
 
 	bool changed = false;
 	bool mapHasNoGnd = false; // This variable is meant to prevent the console from being filled with the "map has no gnd" error
 
 	std::vector<glm::ivec2> getSelectionAroundTiles();
-
 
 	Node* findAndBuildNode(const std::string &path, Node* root = nullptr);
 

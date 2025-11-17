@@ -10,6 +10,7 @@
 #include <glm/gtx/quaternion.hpp>
 class BrowEdit;
 class Map;
+class OutlineShader;
 struct ImVec2;
 
 namespace gl 
@@ -61,12 +62,15 @@ public:
 
 	gl::VBO<VertexP3T2>* gridVbo = nullptr;
 	gl::VBO<VertexP3T2>* rotateGridVbo = nullptr;
+	gl::VBO<VertexP3>* waterGridVbo = nullptr;
+	gl::VBO<VertexP3T2>* outlineVbo = nullptr;
 
 	NodeRenderContext nodeRenderContext;
 	Gadget gadget;
 	Gadget gadgetHeight[9];
 	BillboardRenderer::BillboardShader* billboardShader;
 	SimpleShader* simpleShader = nullptr;
+	OutlineShader* outlineShader = nullptr;
 	static inline SphereMesh sphereMesh;
 	static inline CubeMesh cubeMesh;
 	static inline SkyBoxMesh skyBoxMesh;
@@ -81,6 +85,7 @@ public:
 
 	bool opened = true;
 	gl::FBO* fbo;
+	gl::FBO* outlineFbo;
 	
 	bool showViewOptions = false;
 	bool ortho = false;
@@ -93,7 +98,6 @@ public:
 	bool cameraAnimating = false;
 	glm::vec2 cameraTargetRot;
 	glm::vec3 cameraTargetPos;
-
 
 	bool snapToGrid = false;
 	bool gridLocal = true;
@@ -122,6 +126,7 @@ public:
 	gl::VBO<VertexP3T2>* textureGridVbo = nullptr;
 	bool textureGridSmart = true;
 	bool textureGridDirty = true;
+	bool waterGridDirty = true;
 
 	int textureSelected = 0;
 	glm::vec2 textureEditUv1 = glm::vec2(0.0f, 0.0f);
@@ -155,7 +160,7 @@ public:
 	bool wallAutoStraight = true;
 	bool wallTopDropper = false;
 	bool wallBottomDropper = false;
-
+	bool wallPreview = false;
 
 	//height edit mode
 	bool mouseDown = false;
@@ -171,7 +176,6 @@ public:
 	glm::vec2 mouseDragStart2D;
 	std::vector<glm::ivec2> selectLasso;
 	std::vector<glm::vec3> objectSelectLasso;
-
 
 	MouseState mouseState;
 	MouseState prevMouseState;
@@ -192,6 +196,7 @@ public:
 	void postRenderColorMode(BrowEdit* browEdit);
 	void postRenderShadowMode(BrowEdit* browEdit);
 	void postRenderCinematicMode(BrowEdit* browEdit);
+	void postRenderWaterMode(BrowEdit* browEdit);
 
 	void gatEdit_adjustToGround(BrowEdit* browEdit);
 	
@@ -200,6 +205,8 @@ public:
 
 	void rebuildObjectModeGrid();
 	void rebuildObjectRotateModeGrid();
+	void rebuildWaterGrid(Rsw* rsw, Gnd* gnd, bool forced = false);
+	void rebuildOutlineVbo();
 
 	//todo, move this to a struct for better organisation
 	bool viewLightmapShadow = false;
@@ -224,6 +231,8 @@ public:
 
 	bool enableLightQuickPreview = false;
 	bool hideOtherLightmaps = false;
+	bool showWaterGrid = true;
+	bool showWaterSelectedOverlay = true;
 
 	void focusSelection();
 	void drawLight(Node* n);
