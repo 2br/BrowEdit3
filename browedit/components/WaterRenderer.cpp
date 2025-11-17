@@ -165,17 +165,12 @@ void WaterRenderer::reloadTextures()
 	for (int y = 0; y < rsw->water.splitHeight; y++) {
 		for (int x = 0; x < rsw->water.splitWidth; x++) {
 			for (int i = 0; i < 32; i++) {
-				char buf[128];
-				sprintf_s(buf, 128, "data/texture/water/water000.png");
-
-				int index = 32 * (y * rsw->water.splitWidth + x) + i;
-				if (index >= textures.size()) {
-					textures.push_back(util::ResourceManager<gl::Texture>::load(buf));
-				}
-				else {
-					if (textures[index]->fileName != buf) {
-						util::ResourceManager<gl::Texture>::unload(textures[index]);
-						textures[index] = util::ResourceManager<gl::Texture>::load(buf);
+				int waterType = rsw->water.zones[x][y].type;
+				if (type2textures.find(waterType) == type2textures.end()) {
+					for (int i = 0; i < 32; i++) {
+						char buf[128];
+						sprintf_s(buf, 128, "data/texture/water/water000.png");
+						type2textures[waterType].push_back(util::ResourceManager<gl::Texture>::load(buf));
 					}
 				}
 			}
