@@ -72,6 +72,8 @@ bool BrowEdit::glfwBegin()
     //#ifdef _DEBUG
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
     //#endif
+    if (config.startMaximizedWindow)
+        glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
     window = glfwCreateWindow(1920, 1080, "BrowEdit V3." QUOTE(VERSION), NULL, NULL);
 
     if (window == nullptr)
@@ -82,6 +84,15 @@ bool BrowEdit::glfwBegin()
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
+    #ifdef _WIN32
+        HWND hwnd = glfwGetWin32Window(window);
+        HICON hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(101)); 
+        if (hIcon)
+        {
+            SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+            SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIcon);
+        }
+    #endif
 
     if (
         !gladLoadGL((GLADloadfunc)glfwGetProcAddress)

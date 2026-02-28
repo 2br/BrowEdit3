@@ -169,8 +169,6 @@ void BrowEdit::showHeightWindow()
 				windowData.cropWindowVisible = true;
 			}
 
-			if (ImGui::Button("Finish my map with AI", ImVec2(ImGui::GetContentRegionAvailWidth(), 0)))
-				std::cout << "Coming soon®" << std::endl;
 			ImGui::TreePop();
 		}
 	}

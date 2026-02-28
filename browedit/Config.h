@@ -31,6 +31,7 @@ public:
 	bool closeObjectWindowOnAdd = false;
 	float toolbarButtonSize = 32;
 	ImVec4 toolbarButtonTint = ImVec4(1, 1, 1, 1);
+	bool startMaximizedWindow = true;
 	bool backup = true;
 	bool recalculateQuadtreeOnSave = true;
 	ImVec4 toolbarButtonsViewOptions = ImVec4(139 / 255.0f, 233 / 255.0f, 253 / 255.0f, 1.0f); //cyan
@@ -92,5 +93,6 @@ public:
 		ffmpegPath,
 		lightmapperThreadCount,
 		lightmapperRefreshTimer,
-		additiveShadow);
+		additiveShadow,
+		startMaximizedWindow);
 };
