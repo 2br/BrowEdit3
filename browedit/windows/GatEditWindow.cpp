@@ -554,16 +554,21 @@ void BrowEdit::showGatWindow()
 			auto action = new CubeHeightChangeAction<Gat, Gat::Cube>(gat, activeMapView->map->gatSelection);
 			for (auto t : activeMapView->map->gatSelection)
 			{
+				// Sample a single point at the tile's center instead of each corner.
+			 
+				glm::vec3 pos(0, 1000, 0);
 				for (int i = 0; i < 4; i++)
 				{
-					glm::vec3 pos = gat->getPos(t.x, t.y, i, 0.01f);
-					pos.y = 1000;
-					math::Ray ray(pos, glm::vec3(0, -1, 0));
-					auto height = gnd->rayCast(ray, true, t.x / 2 - 2, t.y / 2 - 2, t.x / 2 + 2, t.y / 2 + 2);
-					if (height.y > 100000 || height.y < -100000)
-						height = gnd->rayCast(ray, true);
-					gat->cubes[t.x][t.y]->heights[i] = -height.y;
+					auto corner = gat->getPos(t.x, t.y, i, 0.0f);
+					pos.x += corner.x * 0.25f;
+					pos.z += corner.z * 0.25f;
 				}
+				math::Ray ray(pos, glm::vec3(0, -1, 0));
+				auto height = gnd->rayCast(ray, true, t.x / 2 - 2, t.y / 2 - 2, t.x / 2 + 2, t.y / 2 + 2);
+				if (height.y > 100000 || height.y < -100000)
+					height = gnd->rayCast(ray, true);
+				for (int i = 0; i < 4; i++)
+					gat->cubes[t.x][t.y]->heights[i] = -height.y;
 			}
 			action->setNewHeights(gat, activeMapView->map->gatSelection);
 			activeMapView->map->doAction(action, this);
