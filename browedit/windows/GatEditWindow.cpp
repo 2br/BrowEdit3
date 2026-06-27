@@ -549,7 +549,7 @@ void BrowEdit::showGatWindow()
 		}
 
 		// Snap selected gat tiles to ground geometry below them
-		if (ImGui::Button("Snap selection to ground"))
+		if (ImGui::Button("Snap to ground (flat)"))
 		{
 			auto action = new CubeHeightChangeAction<Gat, Gat::Cube>(gat, activeMapView->map->gatSelection);
 			for (auto t : activeMapView->map->gatSelection)
@@ -573,7 +573,27 @@ void BrowEdit::showGatWindow()
 			action->setNewHeights(gat, activeMapView->map->gatSelection);
 			activeMapView->map->doAction(action, this);
 		}
-
+		ImGui::SameLine();
+		// Snap selected gat tiles to ground geometry below them
+		if (ImGui::Button("Snap to ground"))
+		{
+			auto action = new CubeHeightChangeAction<Gat, Gat::Cube>(gat, activeMapView->map->gatSelection);
+			for (auto t : activeMapView->map->gatSelection)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					glm::vec3 pos = gat->getPos(t.x, t.y, i, 0.01f);
+					pos.y = 1000;
+					math::Ray ray(pos, glm::vec3(0, -1, 0));
+					auto height = gnd->rayCast(ray, true, t.x / 2 - 2, t.y / 2 - 2, t.x / 2 + 2, t.y / 2 + 2);
+					if (height.y > 100000 || height.y < -100000)
+						height = gnd->rayCast(ray, true);
+					gat->cubes[t.x][t.y]->heights[i] = -height.y;
+				}
+			}
+			action->setNewHeights(gat, activeMapView->map->gatSelection);
+			activeMapView->map->doAction(action, this);
+		}
 		ImGui::TreePop();
 	}
 
